@@ -1,0 +1,101 @@
+# SCM Procurement Mock Server (FastAPI)
+
+## Features
+- MSAL-like login for Procurement Specialist and Admin
+- Supplier custom authentication
+- Purchase Order CRUD APIs
+- JSON file based mock storage
+- Pagination and filtering
+- RBAC-ready responses
+- PO relationships with Procurement Specialist and Supplier
+
+---
+
+## Setup
+
+### Create virtual environment
+
+#### Windows
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+#### Linux / Mac
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+---
+
+## Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Run server
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Server URL:
+http://127.0.0.1:8000
+
+Swagger:
+http://127.0.0.1:8000/docs
+
+---
+
+## Auth
+
+### Procurement Specialist / Admin
+Mock MSAL login endpoint.
+
+### Supplier
+Email/password authentication.
+
+---
+
+## Roles
+- ADMIN
+- PROCUREMENT_SPECIALIST
+- SUPPLIER
+
+---
+
+## Important Mock Notes
+- JWT token is mocked
+- MSAL login is simulated
+- Data is stored in JSON files
+- RBAC information is returned in token payload
+
+---
+
+## Pagination Example
+
+```bash
+GET /po?page=1&page_size=10
+```
+
+---
+
+## Filter Example
+
+```bash
+GET /po?status=APPROVED&supplier_id=SUP-001
+```
+
+---
+
+## Seed Data
+- 5 Procurement Specialists
+- 5 Suppliers
+- 1 Admin
+- 150 Purchase Orders
+
+---

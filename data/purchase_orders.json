@@ -1,0 +1,3752 @@
+[
+  {
+    "id": "683f8fda-2c9b-4252-99c5-cf2ca7b65e89",
+    "po_number": "PO-10001",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 272047,
+    "delivery_date": "2026-08-21",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-001",
+        "description": "Industrial Component",
+        "quantity": 84,
+        "unit_price": 3109
+      }
+    ]
+  },
+  {
+    "id": "2cc6566b-2317-4aa6-85b4-144b611d4879",
+    "po_number": "PO-10002",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 67207,
+    "delivery_date": "2026-07-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-002",
+        "description": "Industrial Component",
+        "quantity": 73,
+        "unit_price": 4502
+      }
+    ]
+  },
+  {
+    "id": "e6a15148-69ff-4235-af80-fced9f1c0c69",
+    "po_number": "PO-10003",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 316070,
+    "delivery_date": "2026-07-09",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-003",
+        "description": "Industrial Component",
+        "quantity": 71,
+        "unit_price": 4938
+      }
+    ]
+  },
+  {
+    "id": "d5f539ea-9a82-4b9b-9698-25de407f74a8",
+    "po_number": "PO-10004",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 320339,
+    "delivery_date": "2026-09-12",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-004",
+        "description": "Industrial Component",
+        "quantity": 19,
+        "unit_price": 3012
+      }
+    ]
+  },
+  {
+    "id": "e2c8cc56-08de-413e-8c63-722c0599373e",
+    "po_number": "PO-10005",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 62120,
+    "delivery_date": "2026-09-11",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-005",
+        "description": "Industrial Component",
+        "quantity": 84,
+        "unit_price": 1822
+      }
+    ]
+  },
+  {
+    "id": "6c16c028-84da-48b6-961d-b8bc02618b69",
+    "po_number": "PO-10006",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 37665,
+    "delivery_date": "2026-08-01",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-006",
+        "description": "Industrial Component",
+        "quantity": 72,
+        "unit_price": 4052
+      }
+    ]
+  },
+  {
+    "id": "482468f1-f5f0-41d5-9f0c-482e441d8248",
+    "po_number": "PO-10007",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 472557,
+    "delivery_date": "2026-06-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-007",
+        "description": "Industrial Component",
+        "quantity": 54,
+        "unit_price": 1184
+      }
+    ]
+  },
+  {
+    "id": "26946bdb-397b-453a-a509-2ee5ba89a47e",
+    "po_number": "PO-10008",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 52425,
+    "delivery_date": "2026-06-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-008",
+        "description": "Industrial Component",
+        "quantity": 34,
+        "unit_price": 4194
+      }
+    ]
+  },
+  {
+    "id": "0498a2fc-88e5-414e-a0a7-b2c67c7ca079",
+    "po_number": "PO-10009",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 329939,
+    "delivery_date": "2026-06-24",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-009",
+        "description": "Industrial Component",
+        "quantity": 27,
+        "unit_price": 1391
+      }
+    ]
+  },
+  {
+    "id": "4c8570c0-c6d3-4671-970f-3292bf3d8bdf",
+    "po_number": "PO-10010",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 407323,
+    "delivery_date": "2026-09-14",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-010",
+        "description": "Industrial Component",
+        "quantity": 42,
+        "unit_price": 827
+      }
+    ]
+  },
+  {
+    "id": "50b7563e-377b-46f1-80c5-43aec507d401",
+    "po_number": "PO-10011",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 353759,
+    "delivery_date": "2026-07-02",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-011",
+        "description": "Industrial Component",
+        "quantity": 53,
+        "unit_price": 1466
+      }
+    ]
+  },
+  {
+    "id": "7165594e-825f-4b86-915b-ac11db461f79",
+    "po_number": "PO-10012",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 331402,
+    "delivery_date": "2026-06-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-012",
+        "description": "Industrial Component",
+        "quantity": 83,
+        "unit_price": 3108
+      }
+    ]
+  },
+  {
+    "id": "a341e7f7-66f5-406d-ae8c-5281bfbba070",
+    "po_number": "PO-10013",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 392101,
+    "delivery_date": "2026-06-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-013",
+        "description": "Industrial Component",
+        "quantity": 11,
+        "unit_price": 3936
+      }
+    ]
+  },
+  {
+    "id": "f40f4325-f62b-4994-a8fe-178fc363471d",
+    "po_number": "PO-10014",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 373079,
+    "delivery_date": "2026-08-29",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-014",
+        "description": "Industrial Component",
+        "quantity": 99,
+        "unit_price": 4987
+      }
+    ]
+  },
+  {
+    "id": "1abd0f8f-5784-4f13-a39a-bc92dc6f57d7",
+    "po_number": "PO-10015",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 372829,
+    "delivery_date": "2026-09-17",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-015",
+        "description": "Industrial Component",
+        "quantity": 79,
+        "unit_price": 1410
+      }
+    ]
+  },
+  {
+    "id": "c284cb8c-f95c-4926-9640-cd090baedd8d",
+    "po_number": "PO-10016",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 345858,
+    "delivery_date": "2026-08-23",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-016",
+        "description": "Industrial Component",
+        "quantity": 51,
+        "unit_price": 1605
+      }
+    ]
+  },
+  {
+    "id": "ecb47a1f-090b-4036-8a40-acdf151d4fc5",
+    "po_number": "PO-10017",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 144563,
+    "delivery_date": "2026-08-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-017",
+        "description": "Industrial Component",
+        "quantity": 79,
+        "unit_price": 3281
+      }
+    ]
+  },
+  {
+    "id": "9c6733ad-ed05-4bc1-bb06-87b26d322905",
+    "po_number": "PO-10018",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 49069,
+    "delivery_date": "2026-08-30",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-018",
+        "description": "Industrial Component",
+        "quantity": 86,
+        "unit_price": 1852
+      }
+    ]
+  },
+  {
+    "id": "d6eedc0b-95d6-4b0a-a197-7cb1de54a986",
+    "po_number": "PO-10019",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 82909,
+    "delivery_date": "2026-07-06",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-019",
+        "description": "Industrial Component",
+        "quantity": 86,
+        "unit_price": 4254
+      }
+    ]
+  },
+  {
+    "id": "63219402-b6f0-49ad-9c73-a37630683af6",
+    "po_number": "PO-10020",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 336651,
+    "delivery_date": "2026-07-31",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-020",
+        "description": "Industrial Component",
+        "quantity": 76,
+        "unit_price": 4899
+      }
+    ]
+  },
+  {
+    "id": "24e0126f-383d-4013-91d5-cc0a0d6eb62d",
+    "po_number": "PO-10021",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 418744,
+    "delivery_date": "2026-08-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-021",
+        "description": "Industrial Component",
+        "quantity": 92,
+        "unit_price": 3140
+      }
+    ]
+  },
+  {
+    "id": "f492d97d-5ad8-41bb-8887-021a5ddfff78",
+    "po_number": "PO-10022",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 253895,
+    "delivery_date": "2026-07-07",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-022",
+        "description": "Industrial Component",
+        "quantity": 49,
+        "unit_price": 3187
+      }
+    ]
+  },
+  {
+    "id": "a91fee6d-9968-4073-8095-a7a2d8268aee",
+    "po_number": "PO-10023",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 333346,
+    "delivery_date": "2026-08-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-023",
+        "description": "Industrial Component",
+        "quantity": 80,
+        "unit_price": 754
+      }
+    ]
+  },
+  {
+    "id": "a79fe140-a588-43e8-aea1-71800b7f9085",
+    "po_number": "PO-10024",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 300816,
+    "delivery_date": "2026-06-03",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-024",
+        "description": "Industrial Component",
+        "quantity": 22,
+        "unit_price": 1634
+      }
+    ]
+  },
+  {
+    "id": "bdd51c5e-cfe5-4f87-aef2-98aec4d98de7",
+    "po_number": "PO-10025",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 84082,
+    "delivery_date": "2026-08-20",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-025",
+        "description": "Industrial Component",
+        "quantity": 74,
+        "unit_price": 2263
+      }
+    ]
+  },
+  {
+    "id": "61d2c6cd-1476-4fc8-ba3e-93871c2b8be6",
+    "po_number": "PO-10026",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 350258,
+    "delivery_date": "2026-06-09",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-026",
+        "description": "Industrial Component",
+        "quantity": 21,
+        "unit_price": 2676
+      }
+    ]
+  },
+  {
+    "id": "1e3e2547-15ff-4fef-bbe9-054943b73144",
+    "po_number": "PO-10027",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 347377,
+    "delivery_date": "2026-08-24",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-027",
+        "description": "Industrial Component",
+        "quantity": 32,
+        "unit_price": 4481
+      }
+    ]
+  },
+  {
+    "id": "6c2e62c7-e2d3-408d-9f2e-56f55d6be959",
+    "po_number": "PO-10028",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 439003,
+    "delivery_date": "2026-06-08",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-028",
+        "description": "Industrial Component",
+        "quantity": 52,
+        "unit_price": 4217
+      }
+    ]
+  },
+  {
+    "id": "9c931497-356b-47c2-9022-5fd07c77b404",
+    "po_number": "PO-10029",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 472285,
+    "delivery_date": "2026-09-10",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-029",
+        "description": "Industrial Component",
+        "quantity": 62,
+        "unit_price": 1077
+      }
+    ]
+  },
+  {
+    "id": "e5543491-32b7-45f5-92e0-0afa6a500118",
+    "po_number": "PO-10030",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 82375,
+    "delivery_date": "2026-07-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-030",
+        "description": "Industrial Component",
+        "quantity": 56,
+        "unit_price": 2010
+      }
+    ]
+  },
+  {
+    "id": "62d325b6-9d62-447f-91b9-1adb64e43c6a",
+    "po_number": "PO-10031",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 280717,
+    "delivery_date": "2026-09-08",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-031",
+        "description": "Industrial Component",
+        "quantity": 68,
+        "unit_price": 4386
+      }
+    ]
+  },
+  {
+    "id": "b52766b1-8ba0-4adc-bf22-10cc25c68c18",
+    "po_number": "PO-10032",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 403042,
+    "delivery_date": "2026-06-17",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-032",
+        "description": "Industrial Component",
+        "quantity": 26,
+        "unit_price": 3038
+      }
+    ]
+  },
+  {
+    "id": "4b6968d6-2dbd-4a88-99f8-85d960800bc3",
+    "po_number": "PO-10033",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 117138,
+    "delivery_date": "2026-08-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-033",
+        "description": "Industrial Component",
+        "quantity": 75,
+        "unit_price": 4536
+      }
+    ]
+  },
+  {
+    "id": "52c04fc4-014a-4894-9b73-3537710a87af",
+    "po_number": "PO-10034",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 191757,
+    "delivery_date": "2026-07-07",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-034",
+        "description": "Industrial Component",
+        "quantity": 57,
+        "unit_price": 1122
+      }
+    ]
+  },
+  {
+    "id": "84368f97-c2de-4235-8e73-5253d097ac96",
+    "po_number": "PO-10035",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 350266,
+    "delivery_date": "2026-07-07",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-035",
+        "description": "Industrial Component",
+        "quantity": 13,
+        "unit_price": 1452
+      }
+    ]
+  },
+  {
+    "id": "907e0e48-6743-4401-b41e-57c5c39fd69f",
+    "po_number": "PO-10036",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 39865,
+    "delivery_date": "2026-07-23",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-036",
+        "description": "Industrial Component",
+        "quantity": 15,
+        "unit_price": 1336
+      }
+    ]
+  },
+  {
+    "id": "a41b03b3-17a6-4a5c-8cba-ca1a204ac211",
+    "po_number": "PO-10037",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 165408,
+    "delivery_date": "2026-06-05",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-037",
+        "description": "Industrial Component",
+        "quantity": 17,
+        "unit_price": 4128
+      }
+    ]
+  },
+  {
+    "id": "0baafb11-9f77-4c6a-a2ab-a3f5b3f09373",
+    "po_number": "PO-10038",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 233923,
+    "delivery_date": "2026-08-11",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-038",
+        "description": "Industrial Component",
+        "quantity": 77,
+        "unit_price": 2889
+      }
+    ]
+  },
+  {
+    "id": "65e0b4ad-ea71-425f-a66b-ae0c9a2043c0",
+    "po_number": "PO-10039",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 435971,
+    "delivery_date": "2026-08-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-039",
+        "description": "Industrial Component",
+        "quantity": 46,
+        "unit_price": 595
+      }
+    ]
+  },
+  {
+    "id": "6088c9cf-1c91-451d-863b-5217b0e63815",
+    "po_number": "PO-10040",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 253854,
+    "delivery_date": "2026-05-29",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-040",
+        "description": "Industrial Component",
+        "quantity": 7,
+        "unit_price": 2845
+      }
+    ]
+  },
+  {
+    "id": "ce7b62e3-f9b5-42cd-90cb-c1b93b3bb706",
+    "po_number": "PO-10041",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 240284,
+    "delivery_date": "2026-09-12",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-041",
+        "description": "Industrial Component",
+        "quantity": 10,
+        "unit_price": 2142
+      }
+    ]
+  },
+  {
+    "id": "a59ed1e3-3861-47c3-bb22-7461817b3ade",
+    "po_number": "PO-10042",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 134070,
+    "delivery_date": "2026-09-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-042",
+        "description": "Industrial Component",
+        "quantity": 42,
+        "unit_price": 4763
+      }
+    ]
+  },
+  {
+    "id": "09e5dcf8-835f-443f-954a-8200a6aac687",
+    "po_number": "PO-10043",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 338605,
+    "delivery_date": "2026-07-01",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-043",
+        "description": "Industrial Component",
+        "quantity": 26,
+        "unit_price": 1789
+      }
+    ]
+  },
+  {
+    "id": "d166ec77-417f-49f8-959c-8ce0b274f107",
+    "po_number": "PO-10044",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 201709,
+    "delivery_date": "2026-07-07",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-044",
+        "description": "Industrial Component",
+        "quantity": 11,
+        "unit_price": 1569
+      }
+    ]
+  },
+  {
+    "id": "400daecf-fa10-467c-8d10-657a83f1e754",
+    "po_number": "PO-10045",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 439214,
+    "delivery_date": "2026-07-10",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-045",
+        "description": "Industrial Component",
+        "quantity": 27,
+        "unit_price": 548
+      }
+    ]
+  },
+  {
+    "id": "36f69c9b-bf22-4483-ba86-6476de787dd5",
+    "po_number": "PO-10046",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 50347,
+    "delivery_date": "2026-09-02",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-046",
+        "description": "Industrial Component",
+        "quantity": 24,
+        "unit_price": 1984
+      }
+    ]
+  },
+  {
+    "id": "374b52c5-267c-4ee9-879c-38565b167f3e",
+    "po_number": "PO-10047",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 38320,
+    "delivery_date": "2026-09-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-047",
+        "description": "Industrial Component",
+        "quantity": 53,
+        "unit_price": 2502
+      }
+    ]
+  },
+  {
+    "id": "f902290b-5400-4c57-a430-cf535a936ca4",
+    "po_number": "PO-10048",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 342597,
+    "delivery_date": "2026-06-01",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-048",
+        "description": "Industrial Component",
+        "quantity": 69,
+        "unit_price": 2218
+      }
+    ]
+  },
+  {
+    "id": "e138acf3-62f0-427c-bd47-eb039991cea6",
+    "po_number": "PO-10049",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 245838,
+    "delivery_date": "2026-09-06",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-049",
+        "description": "Industrial Component",
+        "quantity": 57,
+        "unit_price": 3327
+      }
+    ]
+  },
+  {
+    "id": "93711e21-3f4f-459b-a454-736c00f7aa46",
+    "po_number": "PO-10050",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 68128,
+    "delivery_date": "2026-06-19",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-050",
+        "description": "Industrial Component",
+        "quantity": 77,
+        "unit_price": 2745
+      }
+    ]
+  },
+  {
+    "id": "cda9d304-ea8f-43a5-ad94-adf736cd66f6",
+    "po_number": "PO-10051",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 10999,
+    "delivery_date": "2026-08-24",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-051",
+        "description": "Industrial Component",
+        "quantity": 19,
+        "unit_price": 4362
+      }
+    ]
+  },
+  {
+    "id": "3488920d-b73e-4d2e-9037-e7c2a3095691",
+    "po_number": "PO-10052",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 151888,
+    "delivery_date": "2026-09-21",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-052",
+        "description": "Industrial Component",
+        "quantity": 13,
+        "unit_price": 4863
+      }
+    ]
+  },
+  {
+    "id": "185ae72a-5063-4bc3-a813-5caab104c13a",
+    "po_number": "PO-10053",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 461888,
+    "delivery_date": "2026-08-12",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-053",
+        "description": "Industrial Component",
+        "quantity": 79,
+        "unit_price": 2928
+      }
+    ]
+  },
+  {
+    "id": "3b11d7f4-012c-4e75-a32b-f01932168c68",
+    "po_number": "PO-10054",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 363629,
+    "delivery_date": "2026-09-06",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-054",
+        "description": "Industrial Component",
+        "quantity": 83,
+        "unit_price": 2872
+      }
+    ]
+  },
+  {
+    "id": "b583286e-87e3-411c-85ef-8000f7d9092a",
+    "po_number": "PO-10055",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 376908,
+    "delivery_date": "2026-07-08",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-055",
+        "description": "Industrial Component",
+        "quantity": 87,
+        "unit_price": 2474
+      }
+    ]
+  },
+  {
+    "id": "e110851a-ede4-4a1e-8235-224399e065d7",
+    "po_number": "PO-10056",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 245381,
+    "delivery_date": "2026-06-25",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-056",
+        "description": "Industrial Component",
+        "quantity": 88,
+        "unit_price": 779
+      }
+    ]
+  },
+  {
+    "id": "4f8be541-0a8b-4499-9745-50b143cdac0e",
+    "po_number": "PO-10057",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 104035,
+    "delivery_date": "2026-08-31",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-057",
+        "description": "Industrial Component",
+        "quantity": 33,
+        "unit_price": 1043
+      }
+    ]
+  },
+  {
+    "id": "076c5c45-f1c2-4062-990b-41678b7f4e03",
+    "po_number": "PO-10058",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 66381,
+    "delivery_date": "2026-07-20",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-058",
+        "description": "Industrial Component",
+        "quantity": 10,
+        "unit_price": 982
+      }
+    ]
+  },
+  {
+    "id": "e8d08a69-7973-48f7-b78e-81007e42c3d4",
+    "po_number": "PO-10059",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 76139,
+    "delivery_date": "2026-08-16",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-059",
+        "description": "Industrial Component",
+        "quantity": 8,
+        "unit_price": 1292
+      }
+    ]
+  },
+  {
+    "id": "e413fbda-a4e8-4731-bdbe-72b9a3ba0d9c",
+    "po_number": "PO-10060",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 46733,
+    "delivery_date": "2026-07-03",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-060",
+        "description": "Industrial Component",
+        "quantity": 77,
+        "unit_price": 2008
+      }
+    ]
+  },
+  {
+    "id": "d2eb5204-442c-47e2-b028-c44e31fb9f21",
+    "po_number": "PO-10061",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 98206,
+    "delivery_date": "2026-08-01",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-061",
+        "description": "Industrial Component",
+        "quantity": 63,
+        "unit_price": 4992
+      }
+    ]
+  },
+  {
+    "id": "0ef986aa-e4c6-4900-bb46-43f7aeb3b226",
+    "po_number": "PO-10062",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 192576,
+    "delivery_date": "2026-07-10",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-062",
+        "description": "Industrial Component",
+        "quantity": 94,
+        "unit_price": 2452
+      }
+    ]
+  },
+  {
+    "id": "a385ada7-f343-434d-a606-ff55410a4ad2",
+    "po_number": "PO-10063",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 196610,
+    "delivery_date": "2026-07-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-063",
+        "description": "Industrial Component",
+        "quantity": 30,
+        "unit_price": 1994
+      }
+    ]
+  },
+  {
+    "id": "8f30197f-ff97-4314-bd2c-bf9064afea19",
+    "po_number": "PO-10064",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 115210,
+    "delivery_date": "2026-07-12",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-064",
+        "description": "Industrial Component",
+        "quantity": 19,
+        "unit_price": 2598
+      }
+    ]
+  },
+  {
+    "id": "b4587053-be07-469c-93f5-f2944ddd6c0d",
+    "po_number": "PO-10065",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 370360,
+    "delivery_date": "2026-08-02",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-065",
+        "description": "Industrial Component",
+        "quantity": 13,
+        "unit_price": 3807
+      }
+    ]
+  },
+  {
+    "id": "011ec47c-8898-49ce-b426-8bd339532b81",
+    "po_number": "PO-10066",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 309423,
+    "delivery_date": "2026-07-01",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-066",
+        "description": "Industrial Component",
+        "quantity": 57,
+        "unit_price": 814
+      }
+    ]
+  },
+  {
+    "id": "297b5d52-a921-4a74-a4eb-82000006065c",
+    "po_number": "PO-10067",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 189928,
+    "delivery_date": "2026-06-07",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-067",
+        "description": "Industrial Component",
+        "quantity": 23,
+        "unit_price": 4686
+      }
+    ]
+  },
+  {
+    "id": "9a2f7a10-e03d-4ab0-b7e8-bf8e19afe4cc",
+    "po_number": "PO-10068",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 268858,
+    "delivery_date": "2026-07-30",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-068",
+        "description": "Industrial Component",
+        "quantity": 79,
+        "unit_price": 535
+      }
+    ]
+  },
+  {
+    "id": "1abc809a-8411-4561-91c4-cd7adca7564f",
+    "po_number": "PO-10069",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 205433,
+    "delivery_date": "2026-06-28",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-069",
+        "description": "Industrial Component",
+        "quantity": 77,
+        "unit_price": 4792
+      }
+    ]
+  },
+  {
+    "id": "cfcc74c8-0ec8-4431-b8d4-f3dd61aea627",
+    "po_number": "PO-10070",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 494534,
+    "delivery_date": "2026-09-11",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-070",
+        "description": "Industrial Component",
+        "quantity": 42,
+        "unit_price": 2008
+      }
+    ]
+  },
+  {
+    "id": "ca9e6168-944b-4c71-8dac-632dd58d89c9",
+    "po_number": "PO-10071",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 186800,
+    "delivery_date": "2026-06-21",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-071",
+        "description": "Industrial Component",
+        "quantity": 48,
+        "unit_price": 1471
+      }
+    ]
+  },
+  {
+    "id": "91d8fba0-0e9f-406c-98ea-e0f0856552f0",
+    "po_number": "PO-10072",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 124865,
+    "delivery_date": "2026-08-20",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-072",
+        "description": "Industrial Component",
+        "quantity": 85,
+        "unit_price": 858
+      }
+    ]
+  },
+  {
+    "id": "9aa53ab4-3e0f-42dc-b457-480481217a9e",
+    "po_number": "PO-10073",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 297087,
+    "delivery_date": "2026-06-06",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-073",
+        "description": "Industrial Component",
+        "quantity": 51,
+        "unit_price": 1977
+      }
+    ]
+  },
+  {
+    "id": "34913122-92dd-4a6e-bb1f-a599168c2ab9",
+    "po_number": "PO-10074",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 466979,
+    "delivery_date": "2026-08-17",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-074",
+        "description": "Industrial Component",
+        "quantity": 96,
+        "unit_price": 3817
+      }
+    ]
+  },
+  {
+    "id": "1e23bb30-2de1-4bea-ab32-574b9d0ac3f5",
+    "po_number": "PO-10075",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 204778,
+    "delivery_date": "2026-07-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-075",
+        "description": "Industrial Component",
+        "quantity": 92,
+        "unit_price": 596
+      }
+    ]
+  },
+  {
+    "id": "fb1697aa-3eb8-4b0b-9c13-1b830a71cbfb",
+    "po_number": "PO-10076",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 382025,
+    "delivery_date": "2026-08-12",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-076",
+        "description": "Industrial Component",
+        "quantity": 96,
+        "unit_price": 1100
+      }
+    ]
+  },
+  {
+    "id": "64380003-b0e2-4111-8058-fec06cc4bfe1",
+    "po_number": "PO-10077",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 185377,
+    "delivery_date": "2026-08-11",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-077",
+        "description": "Industrial Component",
+        "quantity": 69,
+        "unit_price": 4781
+      }
+    ]
+  },
+  {
+    "id": "a9e1ea04-2101-4f2d-a3d2-48801deec216",
+    "po_number": "PO-10078",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 453591,
+    "delivery_date": "2026-06-19",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-078",
+        "description": "Industrial Component",
+        "quantity": 12,
+        "unit_price": 2821
+      }
+    ]
+  },
+  {
+    "id": "ac5225be-83e8-4f4f-a005-aad64c66be00",
+    "po_number": "PO-10079",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 124210,
+    "delivery_date": "2026-07-09",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-079",
+        "description": "Industrial Component",
+        "quantity": 65,
+        "unit_price": 4247
+      }
+    ]
+  },
+  {
+    "id": "282fccfd-c17f-479f-ac0d-d66b4687ed03",
+    "po_number": "PO-10080",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 237295,
+    "delivery_date": "2026-07-08",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-080",
+        "description": "Industrial Component",
+        "quantity": 10,
+        "unit_price": 2263
+      }
+    ]
+  },
+  {
+    "id": "621e0432-ed74-4716-a485-66cd92536fd9",
+    "po_number": "PO-10081",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 271495,
+    "delivery_date": "2026-08-02",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-081",
+        "description": "Industrial Component",
+        "quantity": 57,
+        "unit_price": 2603
+      }
+    ]
+  },
+  {
+    "id": "32119481-73ff-4287-98b9-c496382a598f",
+    "po_number": "PO-10082",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 126464,
+    "delivery_date": "2026-08-19",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-082",
+        "description": "Industrial Component",
+        "quantity": 83,
+        "unit_price": 859
+      }
+    ]
+  },
+  {
+    "id": "8877bdbf-eb59-40f9-bd52-420e29e1e893",
+    "po_number": "PO-10083",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 394234,
+    "delivery_date": "2026-07-05",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-083",
+        "description": "Industrial Component",
+        "quantity": 18,
+        "unit_price": 2884
+      }
+    ]
+  },
+  {
+    "id": "3f90e1cb-8516-4a59-b216-d727e809853e",
+    "po_number": "PO-10084",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 274712,
+    "delivery_date": "2026-06-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-084",
+        "description": "Industrial Component",
+        "quantity": 62,
+        "unit_price": 2428
+      }
+    ]
+  },
+  {
+    "id": "6fe0d67d-ac76-47ff-808c-834f424aac16",
+    "po_number": "PO-10085",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 251590,
+    "delivery_date": "2026-06-24",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-085",
+        "description": "Industrial Component",
+        "quantity": 2,
+        "unit_price": 4581
+      }
+    ]
+  },
+  {
+    "id": "a5204a81-14b9-41e8-a9cc-b65deca85d96",
+    "po_number": "PO-10086",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 125602,
+    "delivery_date": "2026-08-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-086",
+        "description": "Industrial Component",
+        "quantity": 69,
+        "unit_price": 4026
+      }
+    ]
+  },
+  {
+    "id": "1826a61a-130e-4166-8863-3cda25835f49",
+    "po_number": "PO-10087",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 224336,
+    "delivery_date": "2026-06-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-087",
+        "description": "Industrial Component",
+        "quantity": 10,
+        "unit_price": 4000
+      }
+    ]
+  },
+  {
+    "id": "45a0961c-9d62-45b6-9447-00f67d8076a3",
+    "po_number": "PO-10088",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 78310,
+    "delivery_date": "2026-07-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-088",
+        "description": "Industrial Component",
+        "quantity": 80,
+        "unit_price": 1476
+      }
+    ]
+  },
+  {
+    "id": "899ae605-4f6d-4061-8610-28beef75cd23",
+    "po_number": "PO-10089",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 115165,
+    "delivery_date": "2026-09-09",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-089",
+        "description": "Industrial Component",
+        "quantity": 48,
+        "unit_price": 1696
+      }
+    ]
+  },
+  {
+    "id": "e071efd0-f6bd-4888-be7e-363e83b44200",
+    "po_number": "PO-10090",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 339575,
+    "delivery_date": "2026-08-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-090",
+        "description": "Industrial Component",
+        "quantity": 50,
+        "unit_price": 2664
+      }
+    ]
+  },
+  {
+    "id": "c81fa71f-68b1-495d-845f-256962040999",
+    "po_number": "PO-10091",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 56968,
+    "delivery_date": "2026-09-03",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-091",
+        "description": "Industrial Component",
+        "quantity": 3,
+        "unit_price": 800
+      }
+    ]
+  },
+  {
+    "id": "1f944a1e-479a-4a63-907a-8892e5b9eedb",
+    "po_number": "PO-10092",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 412753,
+    "delivery_date": "2026-07-23",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-092",
+        "description": "Industrial Component",
+        "quantity": 51,
+        "unit_price": 564
+      }
+    ]
+  },
+  {
+    "id": "bd111cca-13b6-4a17-9d19-51f1ee8d1b26",
+    "po_number": "PO-10093",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 479584,
+    "delivery_date": "2026-07-17",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-093",
+        "description": "Industrial Component",
+        "quantity": 97,
+        "unit_price": 2881
+      }
+    ]
+  },
+  {
+    "id": "bdb99bbe-7791-452c-8028-6fc8b2c2a3b2",
+    "po_number": "PO-10094",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 422571,
+    "delivery_date": "2026-09-19",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-094",
+        "description": "Industrial Component",
+        "quantity": 91,
+        "unit_price": 1410
+      }
+    ]
+  },
+  {
+    "id": "d7b971e5-fe2c-466f-b132-4f21869f7fb6",
+    "po_number": "PO-10095",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 109183,
+    "delivery_date": "2026-08-05",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-095",
+        "description": "Industrial Component",
+        "quantity": 48,
+        "unit_price": 3614
+      }
+    ]
+  },
+  {
+    "id": "18585f5e-8c67-477c-a4d9-11c4267b6d01",
+    "po_number": "PO-10096",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 386256,
+    "delivery_date": "2026-06-16",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-096",
+        "description": "Industrial Component",
+        "quantity": 71,
+        "unit_price": 4182
+      }
+    ]
+  },
+  {
+    "id": "e79a633b-aeef-4ed6-974d-3fffa043e2e0",
+    "po_number": "PO-10097",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 53672,
+    "delivery_date": "2026-08-18",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-097",
+        "description": "Industrial Component",
+        "quantity": 62,
+        "unit_price": 2220
+      }
+    ]
+  },
+  {
+    "id": "3e2280b8-28ad-4cde-8fbc-0bb0fa05085c",
+    "po_number": "PO-10098",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 84652,
+    "delivery_date": "2026-07-28",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-098",
+        "description": "Industrial Component",
+        "quantity": 45,
+        "unit_price": 868
+      }
+    ]
+  },
+  {
+    "id": "735c3f43-b0f6-4f21-8595-966c48068112",
+    "po_number": "PO-10099",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 137161,
+    "delivery_date": "2026-07-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-099",
+        "description": "Industrial Component",
+        "quantity": 92,
+        "unit_price": 807
+      }
+    ]
+  },
+  {
+    "id": "8cd0e487-0745-4824-9b42-8ba0a662490e",
+    "po_number": "PO-10100",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 326138,
+    "delivery_date": "2026-06-23",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-100",
+        "description": "Industrial Component",
+        "quantity": 88,
+        "unit_price": 772
+      }
+    ]
+  },
+  {
+    "id": "f8c48ee2-2bc0-4445-9ce1-695485019a9f",
+    "po_number": "PO-10101",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 178167,
+    "delivery_date": "2026-07-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-101",
+        "description": "Industrial Component",
+        "quantity": 13,
+        "unit_price": 1895
+      }
+    ]
+  },
+  {
+    "id": "0158b7dd-588b-4036-9884-f5783cd726f2",
+    "po_number": "PO-10102",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 54068,
+    "delivery_date": "2026-06-25",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-102",
+        "description": "Industrial Component",
+        "quantity": 91,
+        "unit_price": 1115
+      }
+    ]
+  },
+  {
+    "id": "46c144f5-74cc-48a9-91ff-54986f186b26",
+    "po_number": "PO-10103",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 23530,
+    "delivery_date": "2026-08-20",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-103",
+        "description": "Industrial Component",
+        "quantity": 62,
+        "unit_price": 676
+      }
+    ]
+  },
+  {
+    "id": "8a4bb37e-6757-4838-813d-711096c9d9f2",
+    "po_number": "PO-10104",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 225448,
+    "delivery_date": "2026-09-05",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-104",
+        "description": "Industrial Component",
+        "quantity": 47,
+        "unit_price": 1903
+      }
+    ]
+  },
+  {
+    "id": "68f7af86-193a-4384-b064-4edc2b82b1c3",
+    "po_number": "PO-10105",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 120263,
+    "delivery_date": "2026-07-09",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-105",
+        "description": "Industrial Component",
+        "quantity": 84,
+        "unit_price": 573
+      }
+    ]
+  },
+  {
+    "id": "f5c2d440-74d7-4447-81fa-c9868e01d201",
+    "po_number": "PO-10106",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 395796,
+    "delivery_date": "2026-07-18",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-106",
+        "description": "Industrial Component",
+        "quantity": 18,
+        "unit_price": 3473
+      }
+    ]
+  },
+  {
+    "id": "28d30bd6-a755-48a1-a7f7-22a10b6debe6",
+    "po_number": "PO-10107",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 232239,
+    "delivery_date": "2026-07-20",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-107",
+        "description": "Industrial Component",
+        "quantity": 33,
+        "unit_price": 2875
+      }
+    ]
+  },
+  {
+    "id": "c7f394af-e20f-4515-b0dd-2729908bc8cf",
+    "po_number": "PO-10108",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 438861,
+    "delivery_date": "2026-09-18",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-108",
+        "description": "Industrial Component",
+        "quantity": 29,
+        "unit_price": 2719
+      }
+    ]
+  },
+  {
+    "id": "f84ccfbe-3fff-4634-91a9-ef49e3033c3b",
+    "po_number": "PO-10109",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 331036,
+    "delivery_date": "2026-09-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-109",
+        "description": "Industrial Component",
+        "quantity": 66,
+        "unit_price": 1155
+      }
+    ]
+  },
+  {
+    "id": "d85e0d52-7bfc-4b01-a00c-1e5fe224f3a0",
+    "po_number": "PO-10110",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 17305,
+    "delivery_date": "2026-09-24",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-110",
+        "description": "Industrial Component",
+        "quantity": 42,
+        "unit_price": 1455
+      }
+    ]
+  },
+  {
+    "id": "4d6a4170-d32c-45bb-8d84-add49ad1b2ac",
+    "po_number": "PO-10111",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 291136,
+    "delivery_date": "2026-06-17",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-111",
+        "description": "Industrial Component",
+        "quantity": 76,
+        "unit_price": 4593
+      }
+    ]
+  },
+  {
+    "id": "b8400770-f9fb-4057-9081-1cca2a8ca38e",
+    "po_number": "PO-10112",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 301031,
+    "delivery_date": "2026-06-19",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-112",
+        "description": "Industrial Component",
+        "quantity": 79,
+        "unit_price": 4630
+      }
+    ]
+  },
+  {
+    "id": "8e21bf89-1bb2-4b06-94e4-4f21eda636e7",
+    "po_number": "PO-10113",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 98862,
+    "delivery_date": "2026-07-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-113",
+        "description": "Industrial Component",
+        "quantity": 86,
+        "unit_price": 1962
+      }
+    ]
+  },
+  {
+    "id": "906851ea-642a-48b4-88c9-200504743697",
+    "po_number": "PO-10114",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 382028,
+    "delivery_date": "2026-09-23",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-114",
+        "description": "Industrial Component",
+        "quantity": 59,
+        "unit_price": 3434
+      }
+    ]
+  },
+  {
+    "id": "0b6a9baa-f7c8-4c4b-af83-227df0b5622f",
+    "po_number": "PO-10115",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 146890,
+    "delivery_date": "2026-09-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-115",
+        "description": "Industrial Component",
+        "quantity": 51,
+        "unit_price": 2454
+      }
+    ]
+  },
+  {
+    "id": "57d6f0eb-359a-41be-849a-2287b49f7d5c",
+    "po_number": "PO-10116",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 370597,
+    "delivery_date": "2026-06-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-116",
+        "description": "Industrial Component",
+        "quantity": 94,
+        "unit_price": 1203
+      }
+    ]
+  },
+  {
+    "id": "45a0d80b-217b-41ed-bb59-d55b269c0514",
+    "po_number": "PO-10117",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 190269,
+    "delivery_date": "2026-06-25",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-117",
+        "description": "Industrial Component",
+        "quantity": 84,
+        "unit_price": 1719
+      }
+    ]
+  },
+  {
+    "id": "f8a8daf7-0bdd-400c-bf7f-c5b29b506138",
+    "po_number": "PO-10118",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 386580,
+    "delivery_date": "2026-06-05",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-118",
+        "description": "Industrial Component",
+        "quantity": 28,
+        "unit_price": 4313
+      }
+    ]
+  },
+  {
+    "id": "8d935e9c-5dcb-4ea9-b329-ea097611f95c",
+    "po_number": "PO-10119",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 339861,
+    "delivery_date": "2026-08-15",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-119",
+        "description": "Industrial Component",
+        "quantity": 17,
+        "unit_price": 3091
+      }
+    ]
+  },
+  {
+    "id": "1e090467-7469-47ae-8476-fe36403b950a",
+    "po_number": "PO-10120",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 383763,
+    "delivery_date": "2026-08-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-120",
+        "description": "Industrial Component",
+        "quantity": 70,
+        "unit_price": 3437
+      }
+    ]
+  },
+  {
+    "id": "c54b4257-84ff-44fe-9273-885b17fa89b2",
+    "po_number": "PO-10121",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 481933,
+    "delivery_date": "2026-07-10",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-121",
+        "description": "Industrial Component",
+        "quantity": 9,
+        "unit_price": 1884
+      }
+    ]
+  },
+  {
+    "id": "bd44eec8-bcd1-41aa-9334-e72375176b8c",
+    "po_number": "PO-10122",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 201073,
+    "delivery_date": "2026-07-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-122",
+        "description": "Industrial Component",
+        "quantity": 14,
+        "unit_price": 936
+      }
+    ]
+  },
+  {
+    "id": "855191ae-6c18-48ab-9e19-7b7aba0d189e",
+    "po_number": "PO-10123",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 485430,
+    "delivery_date": "2026-08-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-123",
+        "description": "Industrial Component",
+        "quantity": 86,
+        "unit_price": 4307
+      }
+    ]
+  },
+  {
+    "id": "efaa5f89-a0ba-4922-968f-a9c9c8f08e2c",
+    "po_number": "PO-10124",
+    "source_system": "ORACLE",
+    "status": "APPROVED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 365879,
+    "delivery_date": "2026-08-25",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-124",
+        "description": "Industrial Component",
+        "quantity": 66,
+        "unit_price": 3332
+      }
+    ]
+  },
+  {
+    "id": "4a3ef72f-a250-4b03-879f-cb2208464d24",
+    "po_number": "PO-10125",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 381473,
+    "delivery_date": "2026-06-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-125",
+        "description": "Industrial Component",
+        "quantity": 37,
+        "unit_price": 1452
+      }
+    ]
+  },
+  {
+    "id": "55b6bd69-c8d9-4862-b6e3-0d16bdef0a53",
+    "po_number": "PO-10126",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 233667,
+    "delivery_date": "2026-08-05",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-126",
+        "description": "Industrial Component",
+        "quantity": 10,
+        "unit_price": 4043
+      }
+    ]
+  },
+  {
+    "id": "842c385d-765e-47be-b92e-0d2e1344c02a",
+    "po_number": "PO-10127",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 491636,
+    "delivery_date": "2026-05-29",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-127",
+        "description": "Industrial Component",
+        "quantity": 78,
+        "unit_price": 696
+      }
+    ]
+  },
+  {
+    "id": "31cf22c4-ec7d-4976-b9d9-3cc026f2a61e",
+    "po_number": "PO-10128",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 250105,
+    "delivery_date": "2026-07-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-128",
+        "description": "Industrial Component",
+        "quantity": 19,
+        "unit_price": 3463
+      }
+    ]
+  },
+  {
+    "id": "dbf91d34-4d97-4fe8-895a-194cf58b3c94",
+    "po_number": "PO-10129",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 326785,
+    "delivery_date": "2026-06-10",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-129",
+        "description": "Industrial Component",
+        "quantity": 60,
+        "unit_price": 1924
+      }
+    ]
+  },
+  {
+    "id": "e6ee7a10-2111-431d-93cf-ce144365562c",
+    "po_number": "PO-10130",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 334145,
+    "delivery_date": "2026-09-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-130",
+        "description": "Industrial Component",
+        "quantity": 88,
+        "unit_price": 3586
+      }
+    ]
+  },
+  {
+    "id": "7c17d4a4-9fda-46eb-8793-19fff77f5248",
+    "po_number": "PO-10131",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 377733,
+    "delivery_date": "2026-09-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-131",
+        "description": "Industrial Component",
+        "quantity": 94,
+        "unit_price": 774
+      }
+    ]
+  },
+  {
+    "id": "5d13cc0e-7f0b-4870-80fd-ace125e1fc84",
+    "po_number": "PO-10132",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 77399,
+    "delivery_date": "2026-09-22",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-132",
+        "description": "Industrial Component",
+        "quantity": 71,
+        "unit_price": 4736
+      }
+    ]
+  },
+  {
+    "id": "ccd25ade-c708-46c3-af26-f35e9e71ef7a",
+    "po_number": "PO-10133",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 178984,
+    "delivery_date": "2026-05-30",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-133",
+        "description": "Industrial Component",
+        "quantity": 74,
+        "unit_price": 561
+      }
+    ]
+  },
+  {
+    "id": "7cc6400d-bbf7-4c12-9efe-e1fe2e9020e1",
+    "po_number": "PO-10134",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 320239,
+    "delivery_date": "2026-06-14",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-134",
+        "description": "Industrial Component",
+        "quantity": 81,
+        "unit_price": 4511
+      }
+    ]
+  },
+  {
+    "id": "9e28c201-fb5a-48c3-af31-89a266da9db6",
+    "po_number": "PO-10135",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 302662,
+    "delivery_date": "2026-08-08",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-135",
+        "description": "Industrial Component",
+        "quantity": 42,
+        "unit_price": 613
+      }
+    ]
+  },
+  {
+    "id": "954d9748-a6bf-48bc-a36c-b65223fc157f",
+    "po_number": "PO-10136",
+    "source_system": "SAP",
+    "status": "CREATED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 303588,
+    "delivery_date": "2026-09-24",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-136",
+        "description": "Industrial Component",
+        "quantity": 70,
+        "unit_price": 1052
+      }
+    ]
+  },
+  {
+    "id": "ca2e22e0-f3b9-4511-98f0-5b50c2bf9b96",
+    "po_number": "PO-10137",
+    "source_system": "SAP",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-001",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 69862,
+    "delivery_date": "2026-06-08",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-137",
+        "description": "Industrial Component",
+        "quantity": 80,
+        "unit_price": 3376
+      }
+    ]
+  },
+  {
+    "id": "6f6e2c4a-09ad-4743-a2ba-000e58f0d8f5",
+    "po_number": "PO-10138",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 398547,
+    "delivery_date": "2026-07-25",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-138",
+        "description": "Industrial Component",
+        "quantity": 91,
+        "unit_price": 3980
+      }
+    ]
+  },
+  {
+    "id": "ad6a79a1-d407-4905-bfc8-c50235d6c7e1",
+    "po_number": "PO-10139",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 499322,
+    "delivery_date": "2026-09-04",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-139",
+        "description": "Industrial Component",
+        "quantity": 38,
+        "unit_price": 523
+      }
+    ]
+  },
+  {
+    "id": "3b59098e-a12e-480a-97a7-0a59632cb897",
+    "po_number": "PO-10140",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 233568,
+    "delivery_date": "2026-07-23",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-140",
+        "description": "Industrial Component",
+        "quantity": 17,
+        "unit_price": 518
+      }
+    ]
+  },
+  {
+    "id": "00d798e2-a661-4ad0-9cd9-590bf3f02ae3",
+    "po_number": "PO-10141",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 13714,
+    "delivery_date": "2026-09-17",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-141",
+        "description": "Industrial Component",
+        "quantity": 7,
+        "unit_price": 4118
+      }
+    ]
+  },
+  {
+    "id": "28a40a69-2685-458f-928b-d5b2ebf1e873",
+    "po_number": "PO-10142",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 173953,
+    "delivery_date": "2026-09-25",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-142",
+        "description": "Industrial Component",
+        "quantity": 75,
+        "unit_price": 1950
+      }
+    ]
+  },
+  {
+    "id": "89d74321-2eeb-44f6-9998-3dcb8020410e",
+    "po_number": "PO-10143",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-003",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 166108,
+    "delivery_date": "2026-06-30",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-143",
+        "description": "Industrial Component",
+        "quantity": 74,
+        "unit_price": 2581
+      }
+    ]
+  },
+  {
+    "id": "2fcfcecd-aea1-4bec-9bb3-e16c8c0b3700",
+    "po_number": "PO-10144",
+    "source_system": "ORACLE",
+    "status": "CREATED",
+    "supplier_id": "SUP-001",
+    "supplier_name": "Supplier 1",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 243027,
+    "delivery_date": "2026-07-07",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "DELAY_RISK",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-144",
+        "description": "Industrial Component",
+        "quantity": 81,
+        "unit_price": 4527
+      }
+    ]
+  },
+  {
+    "id": "baae8b16-f3ca-4aa9-8ca6-25ecee98663b",
+    "po_number": "PO-10145",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 27948,
+    "delivery_date": "2026-07-12",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-145",
+        "description": "Industrial Component",
+        "quantity": 61,
+        "unit_price": 2872
+      }
+    ]
+  },
+  {
+    "id": "85cf6a16-208e-4cd3-bbda-a2efc0ccfb43",
+    "po_number": "PO-10146",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 282496,
+    "delivery_date": "2026-07-21",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-146",
+        "description": "Industrial Component",
+        "quantity": 24,
+        "unit_price": 2464
+      }
+    ]
+  },
+  {
+    "id": "f25375c9-1f1e-4f37-af95-a75243e0c473",
+    "po_number": "PO-10147",
+    "source_system": "SAP",
+    "status": "APPROVED",
+    "supplier_id": "SUP-003",
+    "supplier_name": "Supplier 3",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 413237,
+    "delivery_date": "2026-08-13",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-147",
+        "description": "Industrial Component",
+        "quantity": 74,
+        "unit_price": 4343
+      }
+    ]
+  },
+  {
+    "id": "c4fd6429-be9d-4944-ac91-13cf75c42ef9",
+    "po_number": "PO-10148",
+    "source_system": "ORACLE",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-002",
+    "supplier_name": "Supplier 2",
+    "procurement_specialist_id": "PS-004",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 188432,
+    "delivery_date": "2026-06-26",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "NONE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-148",
+        "description": "Industrial Component",
+        "quantity": 33,
+        "unit_price": 1931
+      }
+    ]
+  },
+  {
+    "id": "9659fdff-02de-4d71-b4a6-1ce05d286b51",
+    "po_number": "PO-10149",
+    "source_system": "ORACLE",
+    "status": "IN_PROGRESS",
+    "supplier_id": "SUP-004",
+    "supplier_name": "Supplier 4",
+    "procurement_specialist_id": "PS-002",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 357494,
+    "delivery_date": "2026-07-14",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "PRICE_ALERT",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-149",
+        "description": "Industrial Component",
+        "quantity": 26,
+        "unit_price": 911
+      }
+    ]
+  },
+  {
+    "id": "4126ec4a-12e5-4e36-b427-2684d55183eb",
+    "po_number": "PO-10150",
+    "source_system": "SAP",
+    "status": "DELIVERED",
+    "supplier_id": "SUP-005",
+    "supplier_name": "Supplier 5",
+    "procurement_specialist_id": "PS-005",
+    "delegated_user_id": "",
+    "currency": "INR",
+    "total_value": 393564,
+    "delivery_date": "2026-08-09",
+    "payment_terms": "Net 30",
+    "mrp_exceptions": "SHORTAGE",
+    "created_date": "2026-05-28",
+    "line_items": [
+      {
+        "line_number": 1,
+        "material_code": "MAT-150",
+        "description": "Industrial Component",
+        "quantity": 62,
+        "unit_price": 3091
+      }
+    ]
+  }
+]

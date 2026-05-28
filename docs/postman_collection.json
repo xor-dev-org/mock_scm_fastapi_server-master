@@ -1,0 +1,36 @@
+{
+  "info": {
+    "name": "SCM Procurement Mock Server",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "MSAL Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/auth/msal/login"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@mockscm.com\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get POs",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://127.0.0.1:8000/po?page=1&page_size=10"
+        }
+      }
+    }
+  ]
+}

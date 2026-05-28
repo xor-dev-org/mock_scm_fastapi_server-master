@@ -1,0 +1,24 @@
+openapi: 3.0.0
+info:
+  title: SCM Procurement Mock Server
+  version: 1.0.0
+paths:
+  /auth/msal/login:
+    post:
+      summary: Mock MSAL Login
+  /auth/supplier/signup:
+    post:
+      summary: Supplier Signup
+  /auth/supplier/login:
+    post:
+      summary: Supplier Login
+  /po:
+    get:
+      summary: Get Purchase Orders
+    post:
+      summary: Create Purchase Order
+  /po/{po_id}:
+    get:
+      summary: Get PO by ID
+    put:
+      summary: Update PO

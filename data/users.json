@@ -1,0 +1,38 @@
+[
+  {
+    "id": "PS-001",
+    "name": "Procurement Specialist 1",
+    "email": "ps1@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST"
+  },
+  {
+    "id": "PS-002",
+    "name": "Procurement Specialist 2",
+    "email": "ps2@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST"
+  },
+  {
+    "id": "PS-003",
+    "name": "Procurement Specialist 3",
+    "email": "ps3@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST"
+  },
+  {
+    "id": "PS-004",
+    "name": "Procurement Specialist 4",
+    "email": "ps4@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST"
+  },
+  {
+    "id": "PS-005",
+    "name": "Procurement Specialist 5",
+    "email": "ps5@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST"
+  },
+  {
+    "id": "ADMIN-001",
+    "name": "Admin User",
+    "email": "admin@mockscm.com",
+    "role": "ADMIN"
+  }
+]
