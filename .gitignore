@@ -30,6 +30,7 @@ venv/
 .venv/
 ENV/
 env/
+myenv/
 
 # FastAPI / Uvicorn
 *.log

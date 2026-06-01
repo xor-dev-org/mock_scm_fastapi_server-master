@@ -3,6 +3,16 @@ from app.utils.json_db import read_json, write_json
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
+@router.get("/users")
+def get_users(role: str = None):
+    """Get list of users, optionally filtered by role"""
+    users = read_json("users.json")
+    
+    if role:
+        users = [u for u in users if u.get("role") == role]
+    
+    return users
+
 @router.put("/supplier/{supplier_id}")
 def update_supplier(supplier_id: str, supplier_data: dict):
     suppliers = read_json("suppliers.json")
