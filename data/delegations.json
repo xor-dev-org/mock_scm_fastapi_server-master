@@ -62,5 +62,21 @@
     "id": "DEL-F0EC451C",
     "created_date": "2026-05-29T12:09:39.620788",
     "status": "DRAFT"
+  },
+  {
+    "po_id": "076c5c45-f1c2-4062-990b-41678b7f4e03",
+    "po_number": "PO-10058",
+    "supplier_name": "Supplier 4",
+    "delegated_from_id": "PS-001",
+    "delegated_from_name": "Procurement Specialist 1",
+    "delegated_to_id": "PS-002",
+    "delegated_to_name": "Procurement Specialist 2",
+    "role": "PROCUREMENT_SPECIALIST",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-04",
+    "total_value": 66381,
+    "id": "DEL-AE561D55",
+    "created_date": "2026-06-01T15:25:40.278973",
+    "status": "DRAFT"
   }
 ]
