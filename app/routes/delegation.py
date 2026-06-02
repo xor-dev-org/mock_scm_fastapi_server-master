@@ -8,7 +8,7 @@ router = APIRouter(prefix="/delegation", tags=["Delegations"])
 @router.get("")
 def get_delegations(
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = 50,
     status: str = None,
     search: str = None,
     sort_by: str = None

@@ -6,7 +6,7 @@ router = APIRouter(prefix="/po", tags=["Purchase Orders"])
 @router.get("")
 def get_pos(
     page: int = 1,
-    page_size: int = 10,
+    page_size: int = 50,
     status: str = None,
     supplier_id: str = None,
     procurement_specialist_id: str = None,
