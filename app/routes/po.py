@@ -70,9 +70,9 @@ def get_pos(
             p for p in pos
             if p["total_value"] <= total_value_to
         ]
-
+    print(f"POs after value filtering: {source_system}, count: {len(pos)}")
     if source_system:
-        pos = [p for p in pos if p["source_system"] == source_system]
+        pos = [p for p in pos if p["source_system"].lower() == source_system.lower()]
 
     if items_from is not None:
         pos = [
