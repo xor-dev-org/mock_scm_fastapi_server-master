@@ -3,31 +3,38 @@
     "id": "PS-001",
     "name": "Procurement Specialist 1",
     "email": "ps1@mockscm.com",
-    "role": "PROCUREMENT_SPECIALIST"
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": [
+      "265ede78-e2af-4249-9677-afd0ad0520cc"
+    ]
   },
   {
     "id": "PS-002",
     "name": "Procurement Specialist 2",
     "email": "ps2@mockscm.com",
-    "role": "PROCUREMENT_SPECIALIST"
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
   },
   {
     "id": "PS-003",
     "name": "Procurement Specialist 3",
     "email": "ps3@mockscm.com",
-    "role": "PROCUREMENT_SPECIALIST"
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
   },
   {
     "id": "PS-004",
     "name": "Procurement Specialist 4",
     "email": "ps4@mockscm.com",
-    "role": "PROCUREMENT_SPECIALIST"
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
   },
   {
     "id": "PS-005",
     "name": "Procurement Specialist 5",
     "email": "ps5@mockscm.com",
-    "role": "PROCUREMENT_SPECIALIST"
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
   },
   {
     "id": "ADMIN-001",

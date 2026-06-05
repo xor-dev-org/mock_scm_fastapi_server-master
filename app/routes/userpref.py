@@ -6,42 +6,44 @@ from app.utils.json_db import read_json, write_json
 
 router = APIRouter(prefix="/user-pref", tags=["User Preference"])
 
-class UpdatePinnedColumnsRequest(BaseModel):
+class UpdatePinnedRowsRequest(BaseModel):
     user_id: str
-    pinned_columns: List[str]
+    pinned_rows: List[str]
 
-@router.get("/pinned-columns")
-def get_pinned_columns(user_id: str):
+@router.get("/pinned-rows")
+def get_pinned_rows(user_id: str):
     users = read_json("users.json")
 
     for user in users:
         if user["id"] == user_id:
             return {
                 "user_id": user_id,
-                "pinned_columns": user.get("pinned_columns", [])
+                "pinned_rows": user.get("pinned_rows", [])
             }
 
     raise HTTPException(status_code=404, detail="User not found")
 
 
-@router.put("/pinned-columns")
-def update_pinned_columns(req: UpdatePinnedColumnsRequest):
-    users = read_json()
+@router.put("/pinned-rows")
+def update_pinned_rows(req: UpdatePinnedRowsRequest):
+    users = read_json('users.json')
     updated = False
 
     for user in users:
         if user["id"] == req.user_id:
-            user["pinned_columns"] = req.pinned_columns
+            user["pinned_rows"] = req.pinned_rows
             updated = True
             break
 
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
 
-    write_json(users)
+    print(f"Updated pinned rows for user {req.user_id}: {req.pinned_rows}")
+    print(f"Updated pinned rows for user- {user}")
+    write_json("users.json", users)
 
     return {
-        "message": "Pinned columns updated successfully",
+        "message": "Pinned rows updated successfully",
         "user_id": req.user_id,
-        "pinned_columns": req.pinned_columns
+        "pinned_rows": req.pinned_rows
     }
