@@ -5,7 +5,8 @@
     "email": "ps1@mockscm.com",
     "role": "PROCUREMENT_SPECIALIST",
     "pinned_rows": [
-      "265ede78-e2af-4249-9677-afd0ad0520cc"
+      "8c8017f8-ca82-4a11-b82d-06608a179233",
+      "03ae24cc-8e5d-4080-8e97-469fbaa35737"
     ]
   },
   {
@@ -13,7 +14,12 @@
     "name": "Procurement Specialist 2",
     "email": "ps2@mockscm.com",
     "role": "PROCUREMENT_SPECIALIST",
-    "pinned_rows": []
+    "pinned_rows": [
+      "d48c1edd-5c59-45d0-8002-e8d7d7c3c32e",
+      "2674138b-2388-4b9c-83c5-133a227c090c",
+      "3cb6e43a-034b-41e7-abca-16e0a7ef1762",
+      "c1d10898-02b4-40f3-b02b-c97bc45f85f8"
+    ]
   },
   {
     "id": "PS-003",
@@ -27,7 +33,10 @@
     "name": "Procurement Specialist 4",
     "email": "ps4@mockscm.com",
     "role": "PROCUREMENT_SPECIALIST",
-    "pinned_rows": []
+    "pinned_rows": [
+      "096e9c99-0ed0-4666-8bcd-9cd3b17ffae4",
+      "2b5b643f-4d8c-4785-a4f6-1838a2140a45"
+    ]
   },
   {
     "id": "PS-005",
