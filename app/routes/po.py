@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Query, HTTPException
 from app.utils.json_db import read_json, write_json
 from datetime import datetime
@@ -25,10 +27,18 @@ def get_pos(
     items_from: int = None,
     items_to: int = None,
     mrp_exceptions: str = None,
+    pinned_po_list: List[str] = None
 ):
     pos = read_json("purchase_orders.json")
     print(f"Status filtering: {status}")
+    print(f"pinned_po_list filtering: {pinned_po_list}")
     print(f"source_system: {source_system}")
+    
+    # filter if pinnedPos not empty
+    if pinned_po_list and len(pinned_po_list) > 0:
+        pos = [p for p in pos if p["id"] in pinned_po_list]
+        print(f"After pinned PO filtering: {len(pos)} POs found")
+
     if status:
         pos = [p for p in pos if p["status"] == status]
         print(f"Filtered by status: {len(pos)} POs found")
@@ -135,10 +145,11 @@ def get_pos(
     #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""))
     # elif sort_by == "delivery_date_desc":
     #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""), reverse=True)
-    print(f"Sorting by: {sort_by}, order: {sort_order}")
     print(sort_order == "desc")
     if sort_by is not None:
         pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
+    print(f"POs after sorting: {len(pos)}")
+    print(f"Sorting by: {sort_by}, order: {sort_order}, pos count after sorting: {len(pos)}")
 
     total = len(pos)
 
