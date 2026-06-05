@@ -13,6 +13,7 @@ def get_pos(
     supplier_id: str = None,
     procurement_specialist_id: str = None,
     sort_by: str = None,
+    sort_order: str = "asc",
     search: str = None,
     po_number: str = None,
     supplier_name: str = None,
@@ -130,10 +131,14 @@ def get_pos(
         ]
 
     # Sorting
-    if sort_by == "delivery_date_asc":
-        pos = sorted(pos, key=lambda x: x.get("delivery_date", ""))
-    elif sort_by == "delivery_date_desc":
-        pos = sorted(pos, key=lambda x: x.get("delivery_date", ""), reverse=True)
+    # if sort_by == "delivery_date_asc":
+    #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""))
+    # elif sort_by == "delivery_date_desc":
+    #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""), reverse=True)
+    print(f"Sorting by: {sort_by}, order: {sort_order}")
+    print(sort_order == "desc")
+    if sort_by is not None:
+        pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
 
     total = len(pos)
 
