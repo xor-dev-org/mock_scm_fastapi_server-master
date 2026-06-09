@@ -163,6 +163,35 @@ def get_pos(
         "data": pos[start:end],
     }
 
+@router.get("/pinned_po_list")
+def get_pinned_pos(
+    page: int = 1,
+    page_size: int = 10,
+    user_id: str = Query(..., description="User ID to fetch pinned POs for")
+):
+    pos = read_json("purchase_orders.json")
+    pinned_po_ids = []
+    users = read_json("users.json")
+    print(f'user: {user_id}')
+    for user in users:
+        if user.get("id") == user_id:
+            pinned_po_ids.extend(user.get("pinned_rows", []))
+            break
+    print(f'polist: {pinned_po_ids}')
+    pos = [p for p in pos if p["id"] in pinned_po_ids]
+
+    total = len(pos)
+
+    start = (page - 1) * page_size
+    end = start + page_size
+    print('pinned: ')
+    print(pos)
+    return {
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "data": pos[start:end],
+    }
 
 @router.get("/{po_id}")
 def get_po(po_id: str):
