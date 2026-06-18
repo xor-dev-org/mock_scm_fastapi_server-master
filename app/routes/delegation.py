@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import uuid
-from app.utils.json_db import read_json, write_json
+from app.utils.mongo_db import find_one, query_items, insert_one, update_one, delete_one
 
 router = APIRouter(prefix="/delegation", tags=["Delegations"])
 
@@ -14,7 +14,7 @@ def get_delegations(
     sort_by: str = None
 ):
     """Get list of delegations with filters and pagination"""
-    delegations = read_json("delegations.json")
+    delegations = query_items("delegations")
     
     # Status filter
     if status:
@@ -52,8 +52,7 @@ def get_delegations(
 @router.get("/{delegation_id}")
 def get_delegation(delegation_id: str):
     """Get a specific delegation by ID"""
-    delegations = read_json("delegations.json")
-    delegation = next((d for d in delegations if d["id"] == delegation_id), None)
+    delegation = find_one("delegations", {"id": delegation_id})
     
     if not delegation:
         raise HTTPException(status_code=404, detail="Delegation not found")
@@ -63,41 +62,29 @@ def get_delegation(delegation_id: str):
 @router.post("")
 def create_delegation(delegation_data: dict):
     """Create a new delegation"""
-    delegations = read_json("delegations.json")
-    
-    # Generate ID and set created_date
     delegation_data["id"] = f"DEL-{str(uuid.uuid4()).split('-')[0].upper()}"
     delegation_data["created_date"] = datetime.now().isoformat()
     delegation_data["status"] = "DRAFT"
     
-    delegations.append(delegation_data)
-    write_json("delegations.json", delegations)
-    
-    return delegation_data
+    inserted = insert_one("delegations", delegation_data)
+    return inserted
 
 @router.delete("/{delegation_id}")
 def delete_delegation(delegation_id: str):
     """Delete a delegation"""
-    delegations = read_json("delegations.json")
-    
-    delegation = next((d for d in delegations if d["id"] == delegation_id), None)
-    if not delegation:
+    deleted_count = delete_one("delegations", {"id": delegation_id})
+    if deleted_count == 0:
         raise HTTPException(status_code=404, detail="Delegation not found")
-    
-    delegations = [d for d in delegations if d["id"] != delegation_id]
-    write_json("delegations.json", delegations)
-    
+
     return {"message": "Delegation removed successfully"}
 
 @router.put("/{delegation_id}")
 def update_delegation(delegation_id: str, updated_data: dict):
     """Update a delegation"""
-    delegations = read_json("delegations.json")
-    
-    for index, delegation in enumerate(delegations):
-        if delegation["id"] == delegation_id:
-            delegations[index].update(updated_data)
-            write_json("delegations.json", delegations)
-            return delegations[index]
-    
-    raise HTTPException(status_code=404, detail="Delegation not found")
+    delegation = find_one("delegations", {"id": delegation_id})
+    if not delegation:
+        raise HTTPException(status_code=404, detail="Delegation not found")
+
+    update_one("delegations", {"id": delegation_id}, updated_data)
+    delegation.update(updated_data)
+    return delegation

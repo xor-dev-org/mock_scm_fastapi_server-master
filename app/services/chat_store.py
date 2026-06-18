@@ -3,63 +3,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from azure.cosmos import CosmosClient, exceptions
+from app.utils.mongo_db import find_one, insert_one, query_items, update_one, upsert_one
 
-CHAT_SESSIONS_CONTAINER = os.getenv("AZURE_COSMOS_CHAT_SESSIONS_CONTAINER", "chat_sessions")
-CHAT_MESSAGES_CONTAINER = os.getenv("AZURE_COSMOS_CHAT_MESSAGES_CONTAINER", "chat_messages")
-CHAT_USER_MAP_CONTAINER = os.getenv("AZURE_COSMOS_CHAT_USER_MAP_CONTAINER", "chat_user_map")
-USERS_CONTAINER = os.getenv("AZURE_COSMOS_USERS_CONTAINER", "users")
-SUPPLIERS_CONTAINER = os.getenv("AZURE_COSMOS_SUPPLIERS_CONTAINER", "suppliers")
-PURCHASE_ORDERS_CONTAINER = os.getenv("AZURE_COSMOS_PURCHASE_ORDERS_CONTAINER", "purchase_orders")
-
-
-class CosmosRepository:
-    def __init__(self):
-        self.endpoint = os.getenv("AZURE_COSMOS_ENDPOINT", "")
-        self.key = os.getenv("AZURE_COSMOS_KEY", "")
-        self.database_name = os.getenv("AZURE_COSMOS_DATABASE", "procurement")
-        self._client = None
-        self._database = None
-
-    def _ensure_database(self):
-        if not self.endpoint or not self.key:
-            raise RuntimeError(
-                "Azure Cosmos DB is not configured. Set AZURE_COSMOS_ENDPOINT and AZURE_COSMOS_KEY."
-            )
-
-        if self._database is not None:
-            return self._database
-
-        self._client = CosmosClient(self.endpoint, credential=self.key)
-        self._database = self._client.create_database_if_not_exists(id=self.database_name)
-        return self._database
-
-    def _container(self, container_name: str):
-        database = self._ensure_database()
-        return database.create_container_if_not_exists(
-            id=container_name,
-            partition_key={"paths": ["/partition_key"], "kind": "Hash"},
-        )
-
-    def query_items(self, container_name: str, query: str, parameters: Optional[List[Dict]] = None) -> List[Dict]:
-        container = self._container(container_name)
-        try:
-            return list(
-                container.query_items(
-                    query=query,
-                    parameters=parameters or [],
-                    enable_cross_partition_query=True,
-                )
-            )
-        except exceptions.CosmosHttpResponseError:
-            return []
-
-    def upsert_item(self, container_name: str, item: Dict) -> None:
-        container = self._container(container_name)
-        container.upsert_item(item)
-
-
-cosmos_repo = CosmosRepository()
+CHAT_SESSIONS_COLLECTION = os.getenv("CHAT_SESSIONS_COLLECTION", "chat_sessions")
+CHAT_MESSAGES_COLLECTION = os.getenv("CHAT_MESSAGES_COLLECTION", "chat_messages")
+CHAT_USER_MAP_COLLECTION = os.getenv("CHAT_USER_MAP_COLLECTION", "chat_user_map")
+USERS_COLLECTION = os.getenv("USERS_COLLECTION", "users")
+SUPPLIERS_COLLECTION = os.getenv("SUPPLIERS_COLLECTION", "suppliers")
+PURCHASE_ORDERS_COLLECTION = os.getenv("PURCHASE_ORDERS_COLLECTION", "purchase_orders")
 
 
 def now_iso() -> str:
@@ -67,45 +18,35 @@ def now_iso() -> str:
 
 
 def load_sessions() -> List[Dict]:
-    return cosmos_repo.query_items(
-        CHAT_SESSIONS_CONTAINER,
-        "SELECT * FROM c WHERE c.doc_type = @doc_type",
-        [{"name": "@doc_type", "value": "chat_session"}],
-    )
+    return query_items(CHAT_SESSIONS_COLLECTION, {"doc_type": "chat_session"})
 
 
 def save_sessions(sessions: List[Dict]) -> None:
     for session in sessions:
         payload = dict(session)
         payload.setdefault("id", str(uuid.uuid4()))
+        payload["_id"] = payload["id"]
         payload["doc_type"] = "chat_session"
         payload["partition_key"] = "chat_session"
-        cosmos_repo.upsert_item(CHAT_SESSIONS_CONTAINER, payload)
+        upsert_one(CHAT_SESSIONS_COLLECTION, {"id": payload["id"]}, payload)
 
 
 def load_messages() -> List[Dict]:
-    return cosmos_repo.query_items(
-        CHAT_MESSAGES_CONTAINER,
-        "SELECT * FROM c WHERE c.doc_type = @doc_type",
-        [{"name": "@doc_type", "value": "chat_message"}],
-    )
+    return query_items(CHAT_MESSAGES_COLLECTION, {"doc_type": "chat_message"})
 
 
 def save_messages(messages: List[Dict]) -> None:
     for message in messages:
         payload = dict(message)
         payload.setdefault("id", str(uuid.uuid4()))
+        payload["_id"] = payload["id"]
         payload["doc_type"] = "chat_message"
         payload["partition_key"] = payload.get("session_id", "chat_message")
-        cosmos_repo.upsert_item(CHAT_MESSAGES_CONTAINER, payload)
+        upsert_one(CHAT_MESSAGES_COLLECTION, {"id": payload["id"]}, payload)
 
 
 def load_user_map() -> Dict[str, Dict]:
-    items = cosmos_repo.query_items(
-        CHAT_USER_MAP_CONTAINER,
-        "SELECT * FROM c WHERE c.doc_type = @doc_type",
-        [{"name": "@doc_type", "value": "chat_user_map"}],
-    )
+    items = query_items(CHAT_USER_MAP_COLLECTION, {"doc_type": "chat_user_map"})
 
     out: Dict[str, Dict] = {}
     for item in items:
@@ -119,53 +60,38 @@ def save_user_map(user_map: Dict[str, Dict]) -> None:
     for internal_id, item in user_map.items():
         payload = dict(item)
         payload["id"] = internal_id
+        payload["_id"] = internal_id
         payload["internal_user_id"] = internal_id
         payload["doc_type"] = "chat_user_map"
         payload["partition_key"] = "chat_user_map"
-        cosmos_repo.upsert_item(CHAT_USER_MAP_CONTAINER, payload)
+        upsert_one(CHAT_USER_MAP_COLLECTION, {"id": internal_id}, payload)
 
 
 def find_user(user_id: str) -> Optional[Dict]:
-    query = "SELECT TOP 1 * FROM c WHERE c.id = @id"
-    params = [{"name": "@id", "value": user_id}]
+    user = find_one(USERS_COLLECTION, {"id": user_id})
+    if user:
+        return user
 
-    users = cosmos_repo.query_items(USERS_CONTAINER, query, params)
-    if users:
-        return users[0]
-
-    suppliers = cosmos_repo.query_items(SUPPLIERS_CONTAINER, query, params)
-    if suppliers:
-        return suppliers[0]
-
-    return None
+    supplier = find_one(SUPPLIERS_COLLECTION, {"id": user_id})
+    return supplier
 
 
 def find_po(po_id: str) -> Optional[Dict]:
-    items = cosmos_repo.query_items(
-        PURCHASE_ORDERS_CONTAINER,
-        "SELECT TOP 1 * FROM c WHERE c.id = @id",
-        [{"name": "@id", "value": po_id}],
-    )
-    return items[0] if items else None
+    return find_one(PURCHASE_ORDERS_COLLECTION, {"id": po_id})
 
 
 def list_users(role: Optional[str] = None) -> List[Dict]:
     if role:
-        return cosmos_repo.query_items(
-            USERS_CONTAINER,
-            "SELECT * FROM c WHERE c.role = @role",
-            [{"name": "@role", "value": role}],
-        )
-
-    return cosmos_repo.query_items(USERS_CONTAINER, "SELECT * FROM c")
+        return query_items(USERS_COLLECTION, {"role": role})
+    return query_items(USERS_COLLECTION)
 
 
 def list_suppliers() -> List[Dict]:
-    return cosmos_repo.query_items(SUPPLIERS_CONTAINER, "SELECT * FROM c")
+    return query_items(SUPPLIERS_COLLECTION)
 
 
 def list_purchase_orders() -> List[Dict]:
-    return cosmos_repo.query_items(PURCHASE_ORDERS_CONTAINER, "SELECT * FROM c")
+    return query_items(PURCHASE_ORDERS_COLLECTION)
 
 
 def participants_signature(participant_ids: List[str]) -> str:

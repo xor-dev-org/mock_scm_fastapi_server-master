@@ -2,12 +2,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, po, supplier, admin, delegation, userpref, chat
+from app.utils.mongo_db import initialize_database
 
 
 app = FastAPI(
     title="SCM Procurement Mock Server",
     version="1.0.0"
 )
+
+
+@app.on_event("startup")
+def startup_event():
+    initialize_database()
 
 # Add CORS middleware
 app.add_middleware(

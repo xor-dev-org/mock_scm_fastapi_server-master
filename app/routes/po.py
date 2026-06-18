@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Query, HTTPException
-from app.utils.json_db import read_json, write_json
+from app.utils.mongo_db import find_one, query_items, insert_one, replace_one, update_one
 from datetime import datetime
 
 router = APIRouter(prefix="/po", tags=["Purchase Orders"])
@@ -29,7 +29,7 @@ def get_pos(
     mrp_exceptions: str = None,
     pinned_po_list: List[str] = None
 ):
-    pos = read_json("purchase_orders.json")
+    pos = query_items("purchase_orders")
     print(f"Status filtering: {status}")
     print(f"pinned_po_list filtering: {pinned_po_list}")
     print(f"source_system: {source_system}")
@@ -169,9 +169,9 @@ def get_pinned_pos(
     page_size: int = 10,
     user_id: str = Query(..., description="User ID to fetch pinned POs for")
 ):
-    pos = read_json("purchase_orders.json")
+    pos = query_items("purchase_orders")
     pinned_po_ids = []
-    users = read_json("users.json")
+    users = query_items("users")
     print(f'user: {user_id}')
     for user in users:
         if user.get("id") == user_id:
@@ -195,9 +195,7 @@ def get_pinned_pos(
 
 @router.get("/{po_id}")
 def get_po(po_id: str):
-    pos = read_json("purchase_orders.json")
-
-    po = next((p for p in pos if p["id"] == po_id), None)
+    po = find_one("purchase_orders", {"id": po_id})
 
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
@@ -207,23 +205,15 @@ def get_po(po_id: str):
 
 @router.post("")
 def create_po(po: dict):
-    pos = read_json("purchase_orders.json")
-
-    pos.append(po)
-
-    write_json("purchase_orders.json", pos)
-
-    return po
+    inserted = insert_one("purchase_orders", po)
+    return inserted
 
 
 @router.put("/{po_id}")
 def update_po(po_id: str, updated_po: dict):
-    pos = read_json("purchase_orders.json")
+    existing = find_one("purchase_orders", {"id": po_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="PO not found")
 
-    for index, po in enumerate(pos):
-        if po["id"] == po_id:
-            pos[index] = updated_po
-            write_json("purchase_orders.json", pos)
-            return updated_po
-
-    raise HTTPException(status_code=404, detail="PO not found")
+    updated = replace_one("purchase_orders", {"id": po_id}, updated_po)
+    return updated

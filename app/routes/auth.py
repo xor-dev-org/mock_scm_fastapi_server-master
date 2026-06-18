@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.utils.json_db import read_json, write_json
+from app.utils.mongo_db import find_one, insert_one
 from app.utils.auth import create_token
 import uuid
 
@@ -23,11 +23,9 @@ class SupplierLoginRequest(BaseModel):
 
 @router.post("/msal/login")
 def msal_login(request: MsalLoginRequest):
-    users = read_json("users.json")
+    user = find_one("users", {"email": request.email})
 
-    user = next((u for u in users if u["email"] == request.email and u["role"] in ["ADMIN", "PROCUREMENT_SPECIALIST"]), None)
-
-    if not user:
+    if not user or user.get("role") not in ["ADMIN", "PROCUREMENT_SPECIALIST"]:
         raise HTTPException(status_code=401, detail="Invalid user")
 
     token = create_token(user)
@@ -41,9 +39,7 @@ def msal_login(request: MsalLoginRequest):
 
 @router.post("/supplier/signup")
 def supplier_signup(request: SupplierSignupRequest):
-    suppliers = read_json("suppliers.json")
-
-    existing = next((s for s in suppliers if s["email"] == request.email), None)
+    existing = find_one("suppliers", {"email": request.email})
 
     if existing:
         raise HTTPException(status_code=400, detail="Supplier already exists")
@@ -59,23 +55,13 @@ def supplier_signup(request: SupplierSignupRequest):
         "role": "SUPPLIER"
     }
 
-    suppliers.append(supplier)
-
-    write_json("suppliers.json", suppliers)
-
-    return supplier
+    inserted = insert_one("suppliers", supplier)
+    return inserted
 
 @router.post("/supplier/login")
 def supplier_login(request: SupplierLoginRequest):
-    suppliers = read_json("suppliers.json")
+    supplier = find_one("suppliers", {"email": request.email, "password": request.password})
 
-    supplier = next(
-        (
-            s for s in suppliers
-            if s["email"] == request.email and s["password"] == request.password
-        ),
-        None
-    )
 
     if not supplier:
         raise HTTPException(status_code=401, detail="Invalid credentials")
