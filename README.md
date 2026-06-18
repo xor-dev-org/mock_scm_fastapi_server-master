@@ -4,7 +4,8 @@
 - MSAL-like login for Procurement Specialist and Admin
 - Supplier custom authentication
 - Purchase Order CRUD APIs
-- JSON file based mock storage
+- Azure Communication Services chat integration
+- Azure Cosmos DB storage for chat session/message metadata
 - Pagination and filtering
 - RBAC-ready responses
 - PO relationships with Procurement Specialist and Supplier
@@ -51,6 +52,31 @@ http://127.0.0.1:8000/docs
 
 ---
 
+## Azure Configuration (Chat)
+
+Chat endpoints are now backed by Azure Cosmos DB and no longer use local JSON files for chat metadata.
+
+Set these environment variables before running:
+
+- `AZURE_COSMOS_ENDPOINT`
+- `AZURE_COSMOS_KEY`
+- `AZURE_COSMOS_DATABASE` (default: `procurement`)
+- `AZURE_COSMOS_CHAT_SESSIONS_CONTAINER` (default: `chat_sessions`)
+- `AZURE_COSMOS_CHAT_MESSAGES_CONTAINER` (default: `chat_messages`)
+- `AZURE_COSMOS_CHAT_USER_MAP_CONTAINER` (default: `chat_user_map`)
+- `AZURE_COSMOS_USERS_CONTAINER` (default: `users`)
+- `AZURE_COSMOS_SUPPLIERS_CONTAINER` (default: `suppliers`)
+- `AZURE_COSMOS_PURCHASE_ORDERS_CONTAINER` (default: `purchase_orders`)
+
+Optional realtime/Azure chat variables:
+
+- `ACS_CONNECTION_STRING`
+- `AZURE_SIGNALR_ENDPOINT`
+- `AZURE_SIGNALR_HUB`
+- `AZURE_SIGNALR_ACCESS_KEY`
+
+---
+
 ## Auth
 
 ### Procurement Specialist / Admin
@@ -71,7 +97,8 @@ Email/password authentication.
 ## Important Mock Notes
 - JWT token is mocked
 - MSAL login is simulated
-- Data is stored in JSON files
+- Legacy procurement APIs may still use mock JSON storage until full migration
+- Chat metadata storage is Azure Cosmos DB
 - RBAC information is returned in token payload
 
 ---

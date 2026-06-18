@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth, po, supplier, admin, delegation, userpref
+from app.routes import auth, po, supplier, admin, delegation, userpref, chat
 
 
 app = FastAPI(
@@ -24,6 +24,7 @@ app.include_router(supplier.router)
 app.include_router(admin.router)
 app.include_router(delegation.router)
 app.include_router(userpref.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")
