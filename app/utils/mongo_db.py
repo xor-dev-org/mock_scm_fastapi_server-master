@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 from pymongo.collection import Collection
 from pymongo.errors import ServerSelectionTimeoutError
 
@@ -145,8 +145,13 @@ def seed_collection(collection_name: str, file_name: str) -> None:
         return
 
     collection = get_collection(collection_name)
+
+    # 🚨 THE GUARDRAIL: If MongoDB already has data, STOP here.
+    # This protects your live backend changes (like pinned rows) from being overwritten.
     if collection.count_documents({}) > 0:
         return
+
+    print(f"Seeding collection '{collection_name}' from {file_name}...")
 
     with open(file_path, "r", encoding="utf-8") as input_file:
         data = json.load(input_file)
@@ -169,7 +174,12 @@ def seed_collection(collection_name: str, file_name: str) -> None:
         documents.append(payload)
 
     if documents:
-        collection.insert_many(documents)
+        operations = [
+            UpdateOne({"_id": doc["_id"]}, {"$set": doc}, upsert=True)
+            for doc in documents
+        ]
+        collection.bulk_write(operations)
+        print(f"Successfully seeded {len(documents)} documents into '{collection_name}'.")
 
 
 def initialize_database() -> None:
