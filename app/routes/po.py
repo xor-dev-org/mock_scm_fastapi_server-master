@@ -1,4 +1,8 @@
 from copy import deepcopy
+from turtle import pos
+from typing import List
+
+from app.utils.mongo_db import find_one, query_items, insert_one, replace_one, update_one
 from datetime import datetime
 import logging
 from typing import Dict, List, Optional
@@ -336,13 +340,14 @@ def _apply_action_to_po(
 
     return updated_po
 
-
 @router.get("")
 def get_pos(
     page: int = 1,
     page_size: int = 50,
     status: str = None,
     supplier_id: str = None,
+    supplier_email: str = None,
+    site: str = None,
     procurement_specialist_id: str = None,
     sort_by: str = None,
     sort_order: str = "asc",
@@ -359,6 +364,7 @@ def get_pos(
     mrp_exceptions: str = None,
     pinned_po_list: List[str] = None,
     authorization: Optional[str] = Header(default=None),
+    revision_changes: int = None,
 ):
     current_user = _current_user(authorization)
     pos = query_items("purchase_orders")
@@ -373,6 +379,12 @@ def get_pos(
 
     if supplier_id:
         pos = [p for p in pos if p["supplier_id"] == supplier_id]
+
+    if supplier_email:
+        pos = [p for p in pos if p["supplier_email"] == supplier_email]
+
+    if site:
+        pos = [p for p in pos if p["site"] == site]
 
     if procurement_specialist_id:
         pos = [
@@ -411,6 +423,9 @@ def get_pos(
     if source_system:
         pos = [p for p in pos if p["source_system"].lower() == source_system.lower()]
 
+    if revision_changes is not None:
+        pos = [p for p in pos if p.get("revision_changes") == revision_changes]
+    
     if items_from is not None:
         pos = [
             p for p in pos
@@ -529,6 +544,33 @@ def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
 
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
+    
+    # all_suppliers = query_items("suppliers")
+    
+    # supplier_map = {}
+    # for s in all_suppliers:
+    #     # Check every possible property where the string "SUP-006" could be stored
+    #     raw_id = s.get("id") or s.get("supplier_id") or s.get("_id")
+    #     if raw_id:
+    #         # Clean up the key to avoid space or object ID formatting issues
+    #         clean_key = str(raw_id).strip().upper()
+    #         supplier_map[clean_key] = s
+
+    # for p in pos:
+    #     s_id = p.get("supplier_id")
+    #     # Match the cleaning process (strip spaces, turn uppercase)
+    #     lookup_key = str(s_id).strip().upper() if s_id else None
+        
+    #     supplier_match = supplier_map.get(lookup_key) if lookup_key else None
+        
+    #     if supplier_match:
+    #         p["supplier_email"] = supplier_match.get("supplier_email") or supplier_match.get("email")
+    #         p["site"] = supplier_match.get("site") or supplier_match.get("location")
+    #     else:
+    #         # Setting these to visible string labels temporarily 
+    #         # will show us on the UI if it's hitting the fallback condition
+    #         p["supplier_email"] = f"No link for {s_id}"
+    #         p["site"] = "Missing Site Info"
 
     normalized_po = _normalize_po(po)
     _assert_po_access(normalized_po, current_user)

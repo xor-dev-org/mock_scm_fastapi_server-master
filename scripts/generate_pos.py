@@ -81,13 +81,17 @@ def generate_po(po_index, supplier, ps_index):
     status = STATUS[po_index % len(STATUS)]
     supplier_id = supplier["id"]
     supplier_name = supplier["name"]
+    supplier_email = supplier["email"]
+    site = supplier["site"]
     # assign procurement specialist randomly to avoid one-to-one mapping with supplier
-    procurement_specialist_id = f"PS-{RNG.randint(1, 12):03d}"
-    currency = "INR"
+    procurement_specialist_id = f"PS-{random.randint(1, 12):03d}"
+    currency = "USD"
+    total_value = 10000 + ((po_index * 97) % 490000)
     delivery_date = (date(2026, 6, 1) + timedelta(days=po_index % 120)).isoformat()
     payment_terms = "Net 30"
     mrp_exceptions = MRP[po_index % len(MRP)]
     created_date = date(2026, 5, 28).isoformat()
+    revision_changes = random.randint(0,5)
 
     line_item_count = RNG.randint(1, 5)
     line_items = [_generate_line_item(po_index, line_number) for line_number in range(1, line_item_count + 1)]
@@ -100,6 +104,8 @@ def generate_po(po_index, supplier, ps_index):
         "status": status,
         "supplier_id": supplier_id,
         "supplier_name": supplier_name,
+        "supplier_email": supplier_email,
+        "site": site,
         "procurement_specialist_id": procurement_specialist_id,
         "delegated_user_id": "",
         "currency": currency,
@@ -108,6 +114,7 @@ def generate_po(po_index, supplier, ps_index):
         "payment_terms": payment_terms,
         "mrp_exceptions": mrp_exceptions,
         "created_date": created_date,
+        "revision_changes": revision_changes,
         "line_items": line_items
     }
 
