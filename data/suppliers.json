@@ -1,117 +1,193 @@
-[
-  {
-    "id": "SUP-001",
-    "supplier_number": "SUPNUM-001",
-    "name": "Supplier 1",
-    "email": "supplier1@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 1",
-    "site": "Site-1",
-    "role": "SUPPLIER",
-    "pinned_rows": [
-      "example-sup"
-    ]
-  },
-  {
-    "id": "SUP-002",
-    "supplier_number": "SUPNUM-002",
-    "name": "Supplier 2",
-    "email": "supplier2@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 2",
-    "site": "Site-2",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-003",
-    "supplier_number": "SUPNUM-003",
-    "name": "Supplier 3",
-    "email": "supplier3@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 3",
-    "site": "Site-3",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-004",
-    "supplier_number": "SUPNUM-004",
-    "name": "Supplier 4",
-    "email": "supplier4@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 4",
-    "site": "Site-4",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-005",
-    "supplier_number": "SUPNUM-005",
-    "name": "Supplier 5",
-    "email": "supplier5@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 5",
-    "site": "Site-5",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-006",
-    "supplier_number": "SUPNUM-006",
-    "name": "Supplier 6",
-    "email": "supplier6@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 6",
-    "site": "Site-6",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-007",
-    "supplier_number": "SUPNUM-007",
-    "name": "Supplier 7",
-    "email": "supplier7@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 7",
-    "site": "Site-7",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-008",
-    "supplier_number": "SUPNUM-008",
-    "name": "Supplier 8",
-    "email": "supplier8@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 8",
-    "site": "Site-8",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  },
-  {
-    "id": "SUP-009",
-    "supplier_number": "SUPNUM-009",
-    "name": "Supplier 9",
-    "email": "supplier9@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 9",
-    "site": "Site-9",
-    "role": "SUPPLIER",
-    "pinned_rows": [
-      "91807209-fe37-4801-9e40-ac9df0073aec",
-      "13c6c383-de80-4f70-a9df-49c1fec3c1be"
-    ]
-  },
-  {
-    "id": "SUP-010",
-    "supplier_number": "SUPNUM-010",
-    "name": "Supplier 10",
-    "email": "supplier10@mockscm.com",
-    "password": "Password123",
-    "address": "Nashik Industrial Area 10",
-    "site": "Site-10",
-    "role": "SUPPLIER",
-    "pinned_rows": []
-  }
+﻿[
+    {
+        "id":  "SUP-001",
+        "supplier_number":  "SUPNUM-001",
+        "name":  "Supplier 1",
+        "email":  "supplier1@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 1",
+        "site":  "Site-1",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+                            "example-sup"
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-002",
+        "supplier_number":  "SUPNUM-002",
+        "name":  "Supplier 2",
+        "email":  "supplier2@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 2",
+        "site":  "Site-2",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-003",
+        "supplier_number":  "SUPNUM-003",
+        "name":  "Supplier 3",
+        "email":  "supplier3@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 3",
+        "site":  "Site-3",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-004",
+        "supplier_number":  "SUPNUM-004",
+        "name":  "Supplier 4",
+        "email":  "supplier4@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 4",
+        "site":  "Site-4",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-005",
+        "supplier_number":  "SUPNUM-005",
+        "name":  "Supplier 5",
+        "email":  "supplier5@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 5",
+        "site":  "Site-5",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-006",
+        "supplier_number":  "SUPNUM-006",
+        "name":  "Supplier 6",
+        "email":  "supplier6@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 6",
+        "site":  "Site-6",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-007",
+        "supplier_number":  "SUPNUM-007",
+        "name":  "Supplier 7",
+        "email":  "supplier7@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 7",
+        "site":  "Site-7",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-008",
+        "supplier_number":  "SUPNUM-008",
+        "name":  "Supplier 8",
+        "email":  "supplier8@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 8",
+        "site":  "Site-8",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-009",
+        "supplier_number":  "SUPNUM-009",
+        "name":  "Supplier 9",
+        "email":  "supplier9@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 9",
+        "site":  "Site-9",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+                            "91807209-fe37-4801-9e40-ac9df0073aec",
+                            "13c6c383-de80-4f70-a9df-49c1fec3c1be"
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    },
+    {
+        "id":  "SUP-010",
+        "supplier_number":  "SUPNUM-010",
+        "name":  "Supplier 10",
+        "email":  "supplier10@mockscm.com",
+        "password":  "Password123",
+        "address":  "Nashik Industrial Area 10",
+        "site":  "Site-10",
+        "role":  "SUPPLIER",
+        "pinned_rows":  [
+
+                        ],
+        "permissions":  [
+                            "MAKE_REVISION",
+                            "RAISE_CONCESSION",
+                            "UPLOAD_DOCUMENT",
+                            "ACCEPT"
+                        ]
+    }
 ]

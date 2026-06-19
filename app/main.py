@@ -1,6 +1,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 from app.routes import auth, po, supplier, admin, delegation, userpref, chat
 from app.utils.mongo_db import initialize_database
 
@@ -10,9 +11,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
+)
+
 
 @app.on_event("startup")
 def startup_event():
+    logging.getLogger(__name__).info("server.startup initializing_database")
     initialize_database()
 
 # Add CORS middleware

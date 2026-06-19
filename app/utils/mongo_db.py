@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import uuid
 from pathlib import Path
@@ -16,6 +17,7 @@ MONGO_DB = os.getenv("MONGO_DB", "scm_procurement")
 
 _client: Optional[MongoClient] = None
 _db = None
+logger = logging.getLogger(__name__)
 
 
 def get_client() -> MongoClient:
@@ -82,6 +84,7 @@ def insert_one(collection_name: str, document: Dict[str, Any]) -> Dict[str, Any]
         payload["_id"] = str(uuid.uuid4())
         payload["id"] = payload["_id"]
     collection.insert_one(payload)
+    logger.info("mongo.insert_one collection=%s id=%s", collection_name, payload.get("id"))
     return _clean_document(payload)
 
 
@@ -99,7 +102,22 @@ def replace_one(collection_name: str, filter_value: Dict[str, Any], document: Di
             replacement_id = str(uuid.uuid4())
             payload["id"] = replacement_id
             payload["_id"] = replacement_id
-    collection.replace_one(normalized, payload, upsert=False)
+    result = collection.replace_one(normalized, payload, upsert=False)
+    if result.matched_count == 0:
+        logger.warning(
+            "mongo.replace_one no_match collection=%s filter=%s id=%s",
+            collection_name,
+            normalized,
+            payload.get("id"),
+        )
+        return None
+    logger.info(
+        "mongo.replace_one collection=%s matched=%s modified=%s id=%s",
+        collection_name,
+        result.matched_count,
+        result.modified_count,
+        payload.get("id"),
+    )
     return _clean_document(payload)
 
 
@@ -115,7 +133,15 @@ def upsert_one(collection_name: str, filter_value: Dict[str, Any], document: Dic
         upsert_id = normalized.get("_id") or str(uuid.uuid4())
         payload["id"] = upsert_id
         payload["_id"] = upsert_id
-    collection.replace_one(normalized, payload, upsert=True)
+    result = collection.replace_one(normalized, payload, upsert=True)
+    logger.info(
+        "mongo.upsert_one collection=%s matched=%s modified=%s upserted_id=%s id=%s",
+        collection_name,
+        result.matched_count,
+        result.modified_count,
+        result.upserted_id,
+        payload.get("id"),
+    )
     return _clean_document(payload)
 
 
@@ -123,6 +149,13 @@ def update_one(collection_name: str, filter_value: Dict[str, Any], update_value:
     collection = get_collection(collection_name)
     normalized = _normalize_filter(filter_value)
     result = collection.update_one(normalized, {"$set": update_value})
+    logger.info(
+        "mongo.update_one collection=%s matched=%s modified=%s filter=%s",
+        collection_name,
+        result.matched_count,
+        result.modified_count,
+        normalized,
+    )
     return result.modified_count
 
 
@@ -130,6 +163,12 @@ def delete_one(collection_name: str, filter_value: Dict[str, Any]) -> int:
     collection = get_collection(collection_name)
     normalized = _normalize_filter(filter_value)
     result = collection.delete_one(normalized)
+    logger.info(
+        "mongo.delete_one collection=%s deleted=%s filter=%s",
+        collection_name,
+        result.deleted_count,
+        normalized,
+    )
     return result.deleted_count
 
 
