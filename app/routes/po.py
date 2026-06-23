@@ -340,6 +340,23 @@ def _apply_action_to_po(
 
     return updated_po
 
+#fuction to include Buyer details in PO
+def enrich_buyer_details(pos):
+    users = query_items("users")
+
+    ps_map = {
+        u["id"]: u
+        for u in users
+        if u.get("role") == "PROCUREMENT_SPECIALIST"
+    }
+
+    for po in pos:
+        ps = ps_map.get(po.get("procurement_specialist_id"))
+
+        po["buyer_name"] = ps.get("name", "") if ps else ""
+        po["buyer_email"] = ps.get("email", "") if ps else ""
+        po["buyer_phone"] = ps.get("phone", "") if ps else ""
+
 @router.get("")
 def get_pos(
     page: int = 1,
@@ -487,6 +504,10 @@ def get_pos(
     #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""))
     # elif sort_by == "delivery_date_desc":
     #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""), reverse=True)
+
+    #include buyer details in the PO list
+    enrich_buyer_details(pos)
+
     if sort_by is not None:
         pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
 
@@ -517,15 +538,18 @@ def get_pinned_pos(
     pos = [_normalize_po(po) for po in pos]
     pos = [po for po in pos if _can_access_po(po, current_user)]
     pinned_po_ids = []
-    users = query_items("users")
 
-    for user in users:
-        if user.get("id") == user_id:
-            pinned_po_ids.extend(user.get("pinned_rows", []))
+    for table in ["users", "suppliers"]:
+        for record in query_items(table):
+            if record.get("id") == user_id:
+                pinned_po_ids.extend(record.get("pinned_rows", []))
+                break
+
+        if pinned_po_ids:
             break
 
     pos = [p for p in pos if p["id"] in pinned_po_ids]
-
+    enrich_buyer_details(pos)
     total = len(pos)
 
     start = (page - 1) * page_size
