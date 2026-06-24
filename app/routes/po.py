@@ -11,16 +11,14 @@ from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadF
 from fastapi.responses import FileResponse
 from jose import JWTError
 
-from app.db.models import PODocument, POStatusHistory
+from app.db.models import PODocument, POStatusHistory, User
 from app.db.session import SessionLocal
 from app.utils.auth import decode_token, extract_bearer_token
 from app.utils.postgres_db import (
-    find_one,
+    create_relational_purchase_order,
     find_relational_purchase_order,
-    insert_one,
-    query_items,
     query_relational_purchase_orders,
-    replace_one,
+    replace_relational_purchase_order,
 )
 
 router = APIRouter(prefix="/po", tags=["Purchase Orders"])
@@ -105,18 +103,20 @@ def _current_user(authorization: Optional[str]) -> Dict:
     if not user_id or not role:
         raise HTTPException(status_code=401, detail="Token missing required fields")
 
-    user = find_one("users", {"id": user_id})
-    if not user:
-        user = find_one("suppliers", {"id": user_id})
+    session = SessionLocal()
+    try:
+        user = session.get(User, user_id)
+    finally:
+        session.close()
 
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
     return {
-        "id": user.get("id"),
-        "name": user.get("name"),
-        "email": user.get("email"),
-        "role": user.get("role"),
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
     }
 
 
@@ -225,17 +225,12 @@ def _normalize_po(po: Dict) -> Dict:
 
 def _load_pos() -> List[Dict]:
     pos = query_relational_purchase_orders()
-    if pos:
-        return [_normalize_po(po) for po in pos]
-    return [_normalize_po(po) for po in query_items("purchase_orders")]
+    return [_normalize_po(po) for po in pos]
 
 
 def _load_po(po_id: str) -> Optional[Dict]:
     po = find_relational_purchase_order(po_id)
-    if po:
-        return _normalize_po(po)
-    existing = find_one("purchase_orders", {"id": po_id})
-    return _normalize_po(existing) if existing else None
+    return _normalize_po(po) if po else None
 
 
 def _get_role_ui_config(role: str) -> Dict:
@@ -534,20 +529,20 @@ def _get_document_or_404(session, po_id: str, document_id: str):
 
 #fuction to include Buyer details in PO
 def enrich_buyer_details(pos):
-    users = query_items("users")
+    session = SessionLocal()
+    try:
+        ps_rows = session.query(User).filter(User.role == "PROCUREMENT_SPECIALIST").all()
+    finally:
+        session.close()
 
-    ps_map = {
-        u["id"]: u
-        for u in users
-        if u.get("role") == "PROCUREMENT_SPECIALIST"
-    }
+    ps_map = {u.id: u for u in ps_rows}
 
     for po in pos:
         ps = ps_map.get(po.get("procurement_specialist_id"))
 
-        po["buyer_name"] = ps.get("name", "") if ps else ""
-        po["buyer_email"] = ps.get("email", "") if ps else ""
-        po["buyer_phone"] = ps.get("phone", "") if ps else ""
+        po["buyer_name"] = ps.name if ps and ps.name else ""
+        po["buyer_email"] = ps.email if ps and ps.email else ""
+        po["buyer_phone"] = ps.phone if ps and ps.phone else ""
 
 @router.get("")
 def get_pos(
@@ -727,16 +722,14 @@ def get_pinned_pos(
 
     pos = _load_pos()
     pos = [po for po in pos if _can_access_po(po, current_user)]
-    pinned_po_ids = []
 
-    for table in ["users", "suppliers"]:
-        for record in query_items(table):
-            if record.get("id") == user_id:
-                pinned_po_ids.extend(record.get("pinned_rows", []))
-                break
+    session = SessionLocal()
+    try:
+        user = session.get(User, user_id)
+    finally:
+        session.close()
 
-        if pinned_po_ids:
-            break
+    pinned_po_ids = list(user.pinned_rows or []) if user else []
 
     pos = [p for p in pos if p["id"] in pinned_po_ids]
     enrich_buyer_details(pos)
@@ -804,7 +797,11 @@ def create_po(po: dict, authorization: Optional[str] = Header(default=None)):
     payload["last_modified_by"] = current_user.get("id")
     payload["last_modified_date"] = _now_iso()
 
-    inserted = insert_one("purchase_orders", payload)
+    try:
+        inserted = create_relational_purchase_order(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     logger.info(
         "po.create success po_id=%s actor_id=%s role=%s",
         inserted.get("id"),
@@ -817,24 +814,23 @@ def create_po(po: dict, authorization: Optional[str] = Header(default=None)):
 @router.put("/{po_id}")
 def update_po(po_id: str, updated_po: dict, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    existing = find_one("purchase_orders", {"id": po_id})
+    existing = _load_po(po_id)
     if not existing:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_existing = _normalize_po(existing)
-    _assert_po_access(normalized_existing, current_user)
+    _assert_po_access(existing, current_user)
 
     if current_user.get("role") == "SUPPLIER":
         blocked_fields = {"supplier_id", "procurement_specialist_id", "total_value", "currency"}
         if any(field in updated_po for field in blocked_fields):
             raise HTTPException(status_code=403, detail="Supplier cannot update restricted PO fields")
 
-    merged = {**normalized_existing, **updated_po}
+    merged = {**existing, **updated_po}
     merged["id"] = po_id
     merged["last_modified_by"] = current_user.get("id")
     merged["last_modified_date"] = _now_iso()
 
-    updated = replace_one("purchase_orders", {"id": po_id}, merged)
+    updated = replace_relational_purchase_order(po_id, merged)
     if not updated:
         logger.error(
             "po.update persist_failed po_id=%s actor_id=%s role=%s",
@@ -842,7 +838,7 @@ def update_po(po_id: str, updated_po: dict, authorization: Optional[str] = Heade
             current_user.get("id"),
             current_user.get("role"),
         )
-        raise HTTPException(status_code=500, detail="Failed to persist PO update")
+        raise HTTPException(status_code=404, detail="PO not found")
 
     logger.info(
         "po.update success po_id=%s actor_id=%s role=%s",
@@ -860,12 +856,11 @@ def perform_po_action(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
+    _assert_po_access(po, current_user)
 
     action = (action_payload.get("action") or "").strip().upper()
     line_item_id = action_payload.get("line_item_id")
@@ -918,7 +913,7 @@ def perform_po_action(
     if not resolved_line_ids:
         raise HTTPException(status_code=400, detail="line_item_id is required")
 
-    updated_po = normalized_po
+    updated_po = po
     for resolved_line_id in resolved_line_ids:
         updated_po = _apply_action_to_po(
             po=updated_po,
@@ -937,7 +932,7 @@ def perform_po_action(
             concession_description=concession_description or None,
         )
 
-    persisted = replace_one("purchase_orders", {"id": po_id}, updated_po)
+    persisted = replace_relational_purchase_order(po_id, updated_po)
     if not persisted:
         logger.error(
             "po.action persist_failed po_id=%s action=%s line_item_id=%s actor_id=%s",
@@ -946,7 +941,7 @@ def perform_po_action(
             line_item_id,
             current_user.get("id"),
         )
-        raise HTTPException(status_code=500, detail="Failed to persist PO action")
+        raise HTTPException(status_code=404, detail="PO not found")
 
     logger.info(
         "po.action success po_id=%s action=%s line_item_id=%s actor_id=%s",
@@ -970,12 +965,11 @@ def perform_po_action(
 @router.get("/{po_id}/history")
 def get_po_history(po_id: str, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
+    _assert_po_access(po, current_user)
     db_history = _list_history_for_po(po_id)
     if db_history:
         return {
@@ -985,19 +979,18 @@ def get_po_history(po_id: str, authorization: Optional[str] = Header(default=Non
 
     return {
         "po_id": po_id,
-        "history": normalized_po.get("status_history", []),
+        "history": po.get("status_history", []),
     }
 
 
 @router.get("/{po_id}/documents")
 def get_po_documents(po_id: str, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
+    _assert_po_access(po, current_user)
     return {
         "po_id": po_id,
         "documents": _list_documents_for_po(po_id),
@@ -1011,12 +1004,11 @@ def download_po_document(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
+    _assert_po_access(po, current_user)
 
     session = SessionLocal()
     try:
@@ -1051,12 +1043,11 @@ def perform_po_document_action(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
+    _assert_po_access(po, current_user)
 
     action = (action_payload.get("action") or "").strip().upper()
     notes = (action_payload.get("notes") or "").strip()
@@ -1085,12 +1076,11 @@ async def replace_po_document(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
+    _assert_po_access(po, current_user)
 
     session = SessionLocal()
     try:
@@ -1127,13 +1117,12 @@ async def upload_po_document(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    normalized_po = _normalize_po(po)
-    _assert_po_access(normalized_po, current_user)
-    line_item = _find_line_item_or_404(normalized_po, line_item_id)
+    _assert_po_access(po, current_user)
+    line_item = _find_line_item_or_404(po, line_item_id)
 
     UPLOAD_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
     extension = Path(file.filename or "document").suffix
@@ -1180,7 +1169,9 @@ async def upload_po_document(
         }
     )
 
-    replace_one("purchase_orders", {"id": po_id}, normalized_po)
+    persisted_po = replace_relational_purchase_order(po_id, po)
+    if not persisted_po:
+        raise HTTPException(status_code=500, detail="Failed to persist PO document state")
 
     return {
         "message": "Document uploaded successfully",

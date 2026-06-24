@@ -1,9 +1,50 @@
 from fastapi import APIRouter, HTTPException
-from datetime import datetime
+from datetime import datetime, date
 import uuid
-from app.utils.postgres_db import find_one, query_items, insert_one, update_one, delete_one
+
+from app.db.models import Delegation
+from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/delegation", tags=["Delegations"])
+
+
+def _safe_date(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def _safe_datetime(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def _serialize_delegation(row: Delegation) -> dict:
+    return {
+        "id": row.id,
+        "po_id": row.po_id,
+        "po_number": row.po_number,
+        "supplier_name": row.supplier_name,
+        "delegated_from_id": row.delegated_from_id,
+        "delegated_to_id": row.delegated_to_id,
+        "role": row.role,
+        "start_date": row.start_date.isoformat() if row.start_date else None,
+        "end_date": row.end_date.isoformat() if row.end_date else None,
+        "status": row.status,
+        "created_date": row.created_date.isoformat() if row.created_date else None,
+        "total_value": row.total_value,
+    }
 
 @router.get("")
 def get_delegations(
@@ -14,7 +55,11 @@ def get_delegations(
     sort_by: str = None
 ):
     """Get list of delegations with filters and pagination"""
-    delegations = query_items("delegations")
+    session = SessionLocal()
+    try:
+        delegations = [_serialize_delegation(row) for row in session.query(Delegation).all()]
+    finally:
+        session.close()
     
     # Status filter
     if status:
@@ -52,7 +97,13 @@ def get_delegations(
 @router.get("/{delegation_id}")
 def get_delegation(delegation_id: str):
     """Get a specific delegation by ID"""
-    delegation = find_one("delegations", {"id": delegation_id})
+    session = SessionLocal()
+    try:
+        row = session.get(Delegation, delegation_id)
+    finally:
+        session.close()
+
+    delegation = _serialize_delegation(row) if row else None
     
     if not delegation:
         raise HTTPException(status_code=404, detail="Delegation not found")
@@ -62,29 +113,67 @@ def get_delegation(delegation_id: str):
 @router.post("")
 def create_delegation(delegation_data: dict):
     """Create a new delegation"""
-    delegation_data["id"] = f"DEL-{str(uuid.uuid4()).split('-')[0].upper()}"
-    delegation_data["created_date"] = datetime.now().isoformat()
-    delegation_data["status"] = "DRAFT"
-    
-    inserted = insert_one("delegations", delegation_data)
-    return inserted
+    row = Delegation(
+        id=f"DEL-{str(uuid.uuid4()).split('-')[0].upper()}",
+        po_id=delegation_data.get("po_id") or "",
+        po_number=delegation_data.get("po_number"),
+        supplier_name=delegation_data.get("supplier_name"),
+        delegated_from_id=delegation_data.get("delegated_from_id") or "",
+        delegated_to_id=delegation_data.get("delegated_to_id") or "",
+        role=delegation_data.get("role"),
+        start_date=_safe_date(delegation_data.get("start_date")),
+        end_date=_safe_date(delegation_data.get("end_date")),
+        status="DRAFT",
+        total_value=delegation_data.get("total_value"),
+        created_date=datetime.now(),
+    )
+
+    session = SessionLocal()
+    try:
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _serialize_delegation(row)
+    finally:
+        session.close()
 
 @router.delete("/{delegation_id}")
 def delete_delegation(delegation_id: str):
     """Delete a delegation"""
-    deleted_count = delete_one("delegations", {"id": delegation_id})
-    if deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Delegation not found")
+    session = SessionLocal()
+    try:
+        row = session.get(Delegation, delegation_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Delegation not found")
+        session.delete(row)
+        session.commit()
+    finally:
+        session.close()
 
     return {"message": "Delegation removed successfully"}
 
 @router.put("/{delegation_id}")
 def update_delegation(delegation_id: str, updated_data: dict):
     """Update a delegation"""
-    delegation = find_one("delegations", {"id": delegation_id})
-    if not delegation:
-        raise HTTPException(status_code=404, detail="Delegation not found")
+    session = SessionLocal()
+    try:
+        row = session.get(Delegation, delegation_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Delegation not found")
 
-    update_one("delegations", {"id": delegation_id}, updated_data)
-    delegation.update(updated_data)
-    return delegation
+        for key, value in updated_data.items():
+            if key in {"start_date", "end_date"}:
+                setattr(row, key, _safe_date(value))
+                continue
+            if key == "created_date":
+                row.created_date = _safe_datetime(value)
+                continue
+            if hasattr(row, key):
+                setattr(row, key, value)
+
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _serialize_delegation(row)
+    finally:
+        session.close()

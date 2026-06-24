@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.utils.postgres_db import find_one, insert_one
 from app.utils.auth import create_token
 import uuid
+
+from app.db.models import User
+from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -21,56 +23,104 @@ class SupplierLoginRequest(BaseModel):
     email: str
     password: str
 
+
+def _serialize_user(user: User) -> dict:
+    payload = dict(user.metadata_json or {})
+    payload.update(
+        {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "password": user.password,
+            "supplier_number": user.supplier_number,
+            "phone": user.phone,
+            "address": user.address,
+            "site": user.site,
+            "supplier_msid": user.supplier_msid,
+            "pinned_rows": user.pinned_rows or [],
+            "line_pinned_rows": user.line_pinned_rows or [],
+        }
+    )
+    return payload
+
 @router.post("/msal/login")
 def msal_login(request: MsalLoginRequest):
-    user = find_one("users", {"email": request.email})
+    session = SessionLocal()
+    try:
+        user = session.query(User).filter(User.email == request.email).first()
+    finally:
+        session.close()
 
-    if not user or user.get("role") not in ["ADMIN", "PROCUREMENT_SPECIALIST"]:
+    if not user or user.role not in ["ADMIN", "PROCUREMENT_SPECIALIST"]:
         raise HTTPException(status_code=401, detail="Invalid user")
 
-    token = create_token(user)
+    payload = _serialize_user(user)
+
+    token = create_token(payload)
 
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": user["role"],
-        "user": user
+        "role": payload["role"],
+        "user": payload
     }
 
 @router.post("/supplier/signup")
 def supplier_signup(request: SupplierSignupRequest):
-    existing = find_one("suppliers", {"email": request.email})
+    session = SessionLocal()
+    try:
+        existing = session.query(User).filter(User.email == request.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Supplier already exists")
 
-    if existing:
-        raise HTTPException(status_code=400, detail="Supplier already exists")
+        user = User(
+            id=str(uuid.uuid4()),
+            supplier_number=request.supplier_number,
+            name=request.name,
+            email=request.email,
+            password=request.password,
+            address=request.address,
+            site=request.site,
+            role="SUPPLIER",
+            pinned_rows=[],
+            line_pinned_rows=[],
+            metadata_json={},
+        )
 
-    supplier = {
-        "id": str(uuid.uuid4()),
-        "supplier_number": request.supplier_number,
-        "name": request.name,
-        "email": request.email,
-        "password": request.password,
-        "address": request.address,
-        "site": request.site,
-        "role": "SUPPLIER"
-    }
-
-    inserted = insert_one("suppliers", supplier)
-    return inserted
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return _serialize_user(user)
+    finally:
+        session.close()
 
 @router.post("/supplier/login")
 def supplier_login(request: SupplierLoginRequest):
-    supplier = find_one("suppliers", {"email": request.email, "password": request.password})
-
+    session = SessionLocal()
+    try:
+        supplier = (
+            session.query(User)
+            .filter(
+                User.email == request.email,
+                User.password == request.password,
+                User.role == "SUPPLIER",
+            )
+            .first()
+        )
+    finally:
+        session.close()
 
     if not supplier:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_token(supplier)
+    payload = _serialize_user(supplier)
+
+    token = create_token(payload)
 
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": supplier["role"],
-        "user": supplier
+        "role": payload["role"],
+        "user": payload
     }

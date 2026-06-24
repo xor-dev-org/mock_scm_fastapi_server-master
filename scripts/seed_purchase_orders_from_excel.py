@@ -16,6 +16,7 @@ except ImportError as exc:
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_FILE = BASE_DIR / "data" / "purchase_orders.json"
+DEFAULT_CANONICAL_DIR = BASE_DIR / "data" / "canonical"
 
 PO_FIELD_CANDIDATES = [
     "po_number",
@@ -267,6 +268,145 @@ def merge_po_fields(rows: List[Dict[str, Any]], supplier_map: Dict[str, str], su
     }
 
 
+def _supplier_msid_from_supplier_id(supplier_id: str, fallback: int) -> int:
+    digits = "".join(ch for ch in supplier_id if ch.isdigit())
+    if digits:
+        return int(digits)
+    return fallback
+
+
+def _location_id_from_site(site: str, fallback: int) -> int:
+    digits = "".join(ch for ch in site if ch.isdigit())
+    if digits:
+        return int(digits)
+    return fallback
+
+
+def _derive_reference_data(purchase_orders: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    suppliers_map: Dict[int, Dict[str, Any]] = {}
+    locations_map: Dict[int, Dict[str, Any]] = {}
+    items_map: Dict[str, Dict[str, Any]] = {}
+
+    supplier_fallback = 1000
+    location_fallback = 2000
+
+    for order in purchase_orders:
+        supplier_id = str(order.get("supplier_id") or "")
+        supplier_name = str(order.get("supplier_name") or "").strip()
+        supplier_email = str(order.get("supplier_email") or "").strip()
+        supplier_msid = _supplier_msid_from_supplier_id(supplier_id, supplier_fallback)
+        supplier_fallback = max(supplier_fallback, supplier_msid + 1)
+
+        if supplier_msid not in suppliers_map:
+            suppliers_map[supplier_msid] = {
+                "msid": supplier_msid,
+                "supplier_name": supplier_name or f"Supplier {supplier_msid}",
+                "supplier_dba_name": None,
+                "category_id": None,
+                "category_id2": None,
+                "slp_id": None,
+                "address": "",
+                "city": "",
+                "state_province": "",
+                "iso_country_code": "US",
+                "postal_code": "",
+                "payment_term": str(order.get("payment_terms") or DEFAULT_PAYMENT_TERMS),
+                "incoterm": None,
+                "segmentation": None,
+                "tactical_approach": None,
+                "approval_status": None,
+                "scobc_ack": None,
+                "slp_nda_ack": None,
+                "scobc_received": None,
+                "scobc_understood": None,
+                "company_size": None,
+                "scobc_accept": None,
+                "is_parent": None,
+                "duns_no": None,
+                "bp_type": None,
+                "mdg_managed": None,
+                "bp_block": None,
+                "posting_block": None,
+                "po_block": None,
+                "diversity": None,
+                "management_model": None,
+                "assigned_sqe": None,
+                "supplier_manager": None,
+                "due_diligence": None,
+                "is_archived": False,
+                "supplier_business_focus": None,
+                "seed_email": supplier_email,
+                "seed_user_id": supplier_id,
+            }
+
+        site = str(order.get("site") or "").strip() or f"Site-{location_fallback}"
+        location_id = _location_id_from_site(site, location_fallback)
+        location_fallback = max(location_fallback, location_id + 1)
+
+        if location_id not in locations_map:
+            locations_map[location_id] = {
+                "location_id": location_id,
+                "location_name": site,
+                "platform": "UNKNOWN",
+                "iso_country_code": "US",
+                "address": "",
+                "city": "",
+                "state_province": "",
+                "postal_code": "",
+                "operation": "",
+                "sector": "",
+                "division": "",
+                "istp_flag": None,
+                "location_status": True,
+                "location_type": "",
+                "heritage_name": "",
+                "operating_model": "",
+                "platform_management_region": "",
+                "is_balanced_scorecard": False,
+                "business_unit": "",
+                "ru_no": "",
+                "is_archived": False,
+                "custom_bu": "",
+            }
+
+        for line in order.get("line_items", []):
+            item_no = str(line.get("material_code") or line.get("item_no") or "").strip()
+            if not item_no:
+                continue
+            if item_no not in items_map:
+                items_map[item_no] = {
+                    "item_no": item_no,
+                    "location_id": location_id,
+                    "site_code": site,
+                    "item_lead_time": 0,
+                    "pattern_no": None,
+                    "material_code": item_no,
+                    "item_weight": None,
+                    "item_weight_unit": "KG",
+                    "is_active": True,
+                    "is_safety_stock": False,
+                    "safety_stock_min": None,
+                    "safety_stock_max": None,
+                    "stock_level": None,
+                }
+
+    suppliers = sorted(suppliers_map.values(), key=lambda row: row["msid"])
+    locations = sorted(locations_map.values(), key=lambda row: row["location_id"])
+    items = sorted(items_map.values(), key=lambda row: row["item_no"])
+
+    return {
+        "suppliers": suppliers,
+        "locations": locations,
+        "items": items,
+    }
+
+
+def _write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as output_file:
+        json.dump(payload, output_file, indent=2)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Convert Open PO Data Excel file into purchase order JSON seed data"
@@ -284,6 +424,22 @@ def main() -> None:
         default=DEFAULT_OUTPUT_FILE,
         help="Output JSON file path",
     )
+    parser.add_argument(
+        "--canonical-dir",
+        type=Path,
+        default=DEFAULT_CANONICAL_DIR,
+        help="Directory for canonical JSON artifacts",
+    )
+    parser.add_argument(
+        "--canonical-only",
+        action="store_true",
+        help="Write canonical artifacts only (purchase_orders + suppliers + locations + items)",
+    )
+    parser.add_argument(
+        "--write-derived-masters",
+        action="store_true",
+        help="Also write derived suppliers/locations/items into data/*.json",
+    )
     args = parser.parse_args()
 
     data_rows = load_rows_from_excel(args.input, args.sheet)
@@ -296,11 +452,32 @@ def main() -> None:
     for rows in po_groups.values():
         purchase_orders.append(merge_po_fields(rows, supplier_map, supplier_counter))
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("w", encoding="utf-8") as output_file:
-        json.dump(purchase_orders, output_file, indent=2)
+    derived = _derive_reference_data(purchase_orders)
 
-    print(f"Wrote {len(purchase_orders)} purchase orders to {args.output}")
+    canonical_po = args.canonical_dir / "purchase_orders.canonical.json"
+    canonical_suppliers = args.canonical_dir / "suppliers.canonical.json"
+    canonical_locations = args.canonical_dir / "locations.canonical.json"
+    canonical_items = args.canonical_dir / "items.canonical.json"
+
+    _write_json(canonical_po, purchase_orders)
+    _write_json(canonical_suppliers, derived["suppliers"])
+    _write_json(canonical_locations, derived["locations"])
+    _write_json(canonical_items, derived["items"])
+
+    if not args.canonical_only:
+        _write_json(args.output, purchase_orders)
+
+    if args.write_derived_masters:
+        _write_json(BASE_DIR / "data" / "suppliers.json", derived["suppliers"])
+        _write_json(BASE_DIR / "data" / "locations.json", derived["locations"])
+        _write_json(BASE_DIR / "data" / "items.json", derived["items"])
+
+    print(f"Wrote {len(purchase_orders)} purchase orders to {canonical_po}")
+    print(f"Wrote {len(derived['suppliers'])} suppliers to {canonical_suppliers}")
+    print(f"Wrote {len(derived['locations'])} locations to {canonical_locations}")
+    print(f"Wrote {len(derived['items'])} items to {canonical_items}")
+    if not args.canonical_only:
+        print(f"Wrote runtime purchase orders to {args.output}")
 
 
 if __name__ == "__main__":
