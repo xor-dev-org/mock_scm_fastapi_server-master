@@ -3,7 +3,15 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from app.utils.postgres_db import find_one, insert_one, query_items, update_one, upsert_one
+from app.utils.postgres_db import (
+    find_one,
+    find_relational_purchase_order,
+    insert_one,
+    query_items,
+    query_relational_purchase_orders,
+    update_one,
+    upsert_one,
+)
 
 CHAT_SESSIONS_COLLECTION = os.getenv("CHAT_SESSIONS_COLLECTION", "chat_sessions")
 CHAT_MESSAGES_COLLECTION = os.getenv("CHAT_MESSAGES_COLLECTION", "chat_messages")
@@ -77,6 +85,9 @@ def find_user(user_id: str) -> Optional[Dict]:
 
 
 def find_po(po_id: str) -> Optional[Dict]:
+    po = find_relational_purchase_order(po_id)
+    if po:
+        return po
     return find_one(PURCHASE_ORDERS_COLLECTION, {"id": po_id})
 
 
@@ -91,6 +102,9 @@ def list_suppliers() -> List[Dict]:
 
 
 def list_purchase_orders() -> List[Dict]:
+    relational_pos = query_relational_purchase_orders()
+    if relational_pos:
+        return relational_pos
     return query_items(PURCHASE_ORDERS_COLLECTION)
 
 

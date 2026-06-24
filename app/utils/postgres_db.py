@@ -17,7 +17,11 @@ from app.db.models import (
     ChatUserMapCollection,
     DelegationCollection,
     PurchaseOrderCollection,
+    PurchaseOrderLine,
     SupplierCollection,
+    SupplierMaster,
+    LocationMaster,
+    ItemMaster,
     UserCollection,
 )
 from app.db.session import Base, SessionLocal, engine
@@ -111,6 +115,276 @@ def _safe_date(value: Any) -> Optional[date]:
         except ValueError:
             return None
     return None
+
+
+def _safe_int(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    if isinstance(value, int):
+        return value
+    try:
+        return int(float(value))
+    except Exception:
+        return None
+
+
+def _safe_bool(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "y", "t"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "f"}:
+        return False
+    return None
+
+
+def _json_load(file_path: Path) -> Any:
+    with open(file_path, "r", encoding="utf-8-sig") as input_file:
+        return json.load(input_file)
+
+
+def _seed_supplier_master() -> None:
+    file_path = DATA_DIR / "suppliers.json"
+    if not file_path.exists():
+        return
+
+    with _session_scope() as session:
+        if session.query(SupplierMaster).count() > 0:
+            return
+
+        raw_records = _json_load(file_path)
+        for data in raw_records:
+            row = SupplierMaster(
+                    msid=str(data.get("msid") or data.get("local_supplier_id") or data.get("id") or ""),
+                    supplier_name=str(data.get("name") or data.get("supplier_name") or "").strip(),
+                    supplier_dba_name=str(data.get("supplier_dba_name") or "").strip(),
+                    category_id=str(data.get("category_id") or "").strip(),
+                    category_id2=str(data.get("category_id2") or "").strip(),
+                    slp_id=str(data.get("slp_id") or "").strip(),
+                    address=str(data.get("address") or "").strip(),
+                    city=str(data.get("city") or "").strip(),
+                    state_province=str(data.get("state_province") or "").strip(),
+                    iso_country_code=str(data.get("iso_country_code") or "").strip(),
+                    postal_code=str(data.get("postal_code") or "").strip(),
+                    payment_term=str(data.get("payment_term") or "").strip(),
+                    incoterm=str(data.get("incoterm") or "").strip(),
+                    approval_status=str(data.get("approval_status") or "").strip(),
+                    assigned_sqe=str(data.get("assigned_sqe") or "").strip(),
+                    supplier_manager=str(data.get("supplier_manager") or "").strip(),
+                    is_archived=_safe_bool(data.get("is_archived")) or False,
+            )
+            session.add(row)
+
+
+def _seed_location_master() -> None:
+    file_path = DATA_DIR / "locations.json"
+    if not file_path.exists():
+        return
+
+    with _session_scope() as session:
+        if session.query(LocationMaster).count() > 0:
+            return
+
+        raw_records = _json_load(file_path)
+        for data in raw_records:
+            row = LocationMaster(
+                location_id=str(data.get("location_id") or data.get("location")),
+                location_name=data.get("location_name") or data.get("location"),
+                platform=data.get("platform") or data.get("site_type"),
+                iso_country_code=data.get("iso_country_code"),
+                address=data.get("address"),
+                city=data.get("city"),
+                state_province=data.get("state_province"),
+                postal_code=data.get("postal_code"),
+                operation=data.get("operation"),
+                sector=data.get("sector"),
+                division=data.get("division"),
+                is_archived=_safe_bool(data.get("is_archived")),
+            )
+            session.add(row)
+
+
+def _seed_item_master() -> None:
+    file_path = DATA_DIR / "items.json"
+    if not file_path.exists():
+        return
+
+    with _session_scope() as session:
+        if session.query(ItemMaster).count() > 0:
+            return
+
+        raw_records = _json_load(file_path)
+        for data in raw_records:
+            row = ItemMaster(
+                item_no=str(data.get("item_no") or data.get("material_code") or ""),
+                location_id=str(data.get("location_id") or data.get("location") or ""),
+                material_code=str(data.get("material_code") or "").strip(),
+                item_lead_time=_safe_int(data.get("item_le_time") or data.get("item_lead_time")) or 0,
+                item_weight=float(data.get("item_weight")) if data.get("item_weight") not in (None, "") else 0.0,
+                item_weight_unit=str(data.get("item_weight_unit") or "EA").strip(),
+                is_active=_safe_bool(data.get("is_active")) if _safe_bool(data.get("is_active")) is not None else True,
+                is_safety_stock=_safe_bool(data.get("is_safety_stock")) if _safe_bool(data.get("is_safety_stock")) is not None else False,
+                safety_stock_min=_safe_int(data.get("safety_stock_min")) or 0,
+                safety_stock_max=_safe_int(data.get("safety_stock_max")) or 0,
+            )
+            session.add(row)
+
+
+def _seed_purchase_order_lines() -> None:
+    file_path = DATA_DIR / "purchase_orders.json"
+    if not file_path.exists():
+        return
+
+    with _session_scope() as session:
+        if session.query(PurchaseOrderLine).count() > 0:
+            return
+
+        raw_records = _json_load(file_path)
+        for order in raw_records:
+            po_header_id = str(order.get("id") or order.get("po_header_id") or order.get("po_number") or "")
+            for line in order.get("line_items", []):
+                _loc = str(order.get("location_id") or order.get("location") or "").strip()
+                po_kwargs = {
+                    "po_header_id": po_header_id,
+                    "po_number": str(order.get("po_number") or ""),
+                    "local_supplier_id": str(order.get("supplier_msid") or order.get("local_supplier_id") or order.get("supplier_id")) if order.get("supplier_msid") or order.get("local_supplier_id") or order.get("supplier_id") else None,
+                }
+                if _loc:
+                    po_kwargs["location_id"] = _loc
+                row = PurchaseOrderLine(
+                    **po_kwargs,
+                    source_erp=order.get("source_system") or order.get("source_erp") or "SAP",
+                    po_line_no=str(line.get("line_number") or line.get("po_line_no") or ""),
+                    po_release_no=_safe_int(line.get("po_release_no") or line.get("release_number")),
+                    po_line_revision_no=_safe_int(line.get("po_line_revision_no") or line.get("revision_number")),
+                    po_issue_date=_safe_date(order.get("po_issue_date") or order.get("created_date") or order.get("document_date")),
+                    po_line_issue_date=_safe_date(line.get("po_line_issue_date") or line.get("line_issue_date") or order.get("created_date")),
+                    po_created_by=order.get("procurement_specialist_id") or order.get("po_created_by"),
+                    po_status=order.get("status") or order.get("po_status") or "OPEN",
+                    item_no=str(line.get("item_no") or line.get("material_code") or ""),
+                    item_description=line.get("description") or line.get("item_description"),
+                    quantity_ordered=_safe_int(line.get("quantity") or line.get("quantity_ordered") or 0) or 0,
+                    quantity_outstanding=_safe_int(line.get("quantity") or line.get("quantity_outstanding") or 0) or 0,
+                    unit_of_measure=line.get("unit") or line.get("unit_of_measure"),
+                    unit_cost=float(line.get("unit_price") or line.get("unit_cost") or 0.0),
+                    currency_code=order.get("currency") or line.get("currency_code") or "USD",
+                    mrp_need_by_date=_safe_date(line.get("mrp_need_by_date") or order.get("mrp_need_by_date") or order.get("delivery_date")),
+                    original_promise_date=_safe_date(line.get("original_promise_date") or order.get("created_date") or order.get("document_date")),
+                    latest_promise_date=_safe_date(line.get("latest_promise_date") or order.get("delivery_date") or line.get("latest_promise_date")),
+                    ots_promise_date=_safe_date(line.get("ots_promise_date") or line.get("shipment_date") or order.get("shipment_date")),
+                    item_category_id=line.get("item_category_id"),
+                    incoterm=line.get("incoterm"),
+                    incoterm_named_place=line.get("incoterm_named_place"),
+                    payment_term=order.get("payment_terms") or order.get("payment_term"),
+                    supplier_email=order.get("supplier_email") or line.get("supplier_email"),
+                    purchasing_group=order.get("purchasing_group") or line.get("purchasing_group"),
+                    shipment_mode=line.get("shipment_mode"),
+                    po_line_ack_status=line.get("po_line_ack_status"),
+                    po_line_ack_date=_safe_date(line.get("po_line_ack_date")),
+                    savings_type=line.get("savings_type"),
+                    savings=_safe_int(line.get("savings")),
+                    std_unit_cost=float(line.get("std_unit_cost") or 0.0) if line.get("std_unit_cost") else None,
+                    except_message=line.get("except_message"),
+                    rescheduling_date=_safe_date(line.get("rescheduling_date")),
+                    po_feedback=line.get("po_feedback"),
+                )
+                session.add(row)
+
+
+def _seed_relational_data() -> None:
+    _seed_supplier_master()
+    _seed_location_master()
+    _seed_item_master()
+    _seed_purchase_order_lines()
+
+
+def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
+    return {
+        "id": str(line.id),
+        "line_number": line.po_line_no or "",
+        "item_no": line.item_no,
+        "material_code": line.item_no,
+        "description": line.item_description,
+        "quantity": line.quantity_ordered,
+        "unit_price": float(line.unit_cost or 0),
+        "unit": line.unit_of_measure,
+        "shipment_date": line.ots_promise_date.isoformat() if line.ots_promise_date else None,
+        "required_in_house_date": line.mrp_need_by_date.isoformat() if line.mrp_need_by_date else None,
+        "net_value": round((line.quantity_ordered or 0) * float(line.unit_cost or 0), 2),
+        "item_category_id": line.item_category_id,
+        "incoterm": line.incoterm,
+        "incoterm_named_place": line.incoterm_named_place,
+        "payment_term": line.payment_term,
+        "supplier_email": line.supplier_email,
+        "purchasing_group": line.purchasing_group,
+        "line_status": line.po_line_ack_status or "",
+        "history": [],
+    }
+
+
+def _build_relational_po(line: PurchaseOrderLine) -> Dict[str, Any]:
+    supplier_name = line.supplier.supplier_name if line.supplier else None
+    supplier_email = line.supplier_email or (line.supplier.supplier_name if line.supplier else None)
+    site = line.location.location_name if line.location else None
+    return {
+        "id": line.po_header_id,
+        "po_number": line.po_number,
+        "supplier_id": str(line.local_supplier_id) if line.local_supplier_id is not None else None,
+        "supplier_name": supplier_name,
+        "supplier_email": supplier_email,
+        "site": site,
+        "status": line.po_status,
+        "source_system": line.source_erp,
+        "currency": line.currency_code,
+        "payment_terms": line.payment_term,
+        "delivery_date": line.latest_promise_date.isoformat() if line.latest_promise_date else None,
+        "mrp_need_by_date": line.mrp_need_by_date.isoformat() if line.mrp_need_by_date else None,
+        "procurement_specialist_id": line.po_created_by,
+        "created_date": line.po_issue_date.isoformat() if line.po_issue_date else None,
+        "line_items": [],
+        "status_history": [],
+        "workflow_stage": "PO_DETAILS",
+    }
+
+
+def query_relational_purchase_orders() -> List[Dict[str, Any]]:
+    with _session_scope() as session:
+        rows = session.query(PurchaseOrderLine).order_by(PurchaseOrderLine.po_header_id).all()
+
+        pos_by_header: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            header_id = row.po_header_id
+            po = pos_by_header.get(header_id)
+            if po is None:
+                po = _build_relational_po(row)
+                pos_by_header[header_id] = po
+            po.setdefault("line_items", []).append(_serialize_po_line(row))
+
+        for po in pos_by_header.values():
+            po["total_value"] = round(sum(item.get("net_value", 0) for item in po.get("line_items", [])), 2)
+
+        return list(pos_by_header.values())
+
+
+def find_relational_purchase_order(po_id: str) -> Optional[Dict[str, Any]]:
+    with _session_scope() as session:
+        rows = (
+            session.query(PurchaseOrderLine)
+            .filter(PurchaseOrderLine.po_header_id == po_id)
+            .order_by(PurchaseOrderLine.po_line_no)
+            .all()
+        )
+
+        if not rows:
+            return None
+
+        po = _build_relational_po(rows[0])
+        po["line_items"] = [_serialize_po_line(row) for row in rows]
+        po["total_value"] = round(sum(item.get("net_value", 0) for item in po.get("line_items", [])), 2)
+        return po
 
 
 def _apply_index_fields(row: Any, payload: Dict[str, Any]) -> None:
@@ -410,3 +684,5 @@ def initialize_database() -> None:
     }
     for collection_name, file_name in optional_mappings.items():
         seed_collection(collection_name, file_name)
+
+    _seed_relational_data()

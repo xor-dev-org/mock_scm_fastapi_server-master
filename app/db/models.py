@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
 
@@ -224,3 +224,51 @@ class ItemMaster(Base):
     is_safety_stock: Mapped[bool] = mapped_column()
     safety_stock_min: Mapped[int] = mapped_column(Integer)
     safety_stock_max: Mapped[int] = mapped_column(Integer)
+
+
+class PurchaseOrderLine(Base):
+    __tablename__ = "po_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    po_header_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    po_number: Mapped[str] = mapped_column(String, index=True)
+    local_supplier_id: Mapped[str] = mapped_column(String, ForeignKey("supplier_master.msid"), nullable=True)
+    location_id: Mapped[str] = mapped_column(String, ForeignKey("location.location_id"), nullable=True)
+    source_erp: Mapped[str] = mapped_column(String, nullable=False, default="SAP")
+    po_line_no: Mapped[str] = mapped_column(String, nullable=True)
+    po_release_no: Mapped[int] = mapped_column(Integer, nullable=True)
+    po_line_revision_no: Mapped[int] = mapped_column(Integer, nullable=True)
+    po_issue_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    po_line_issue_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    po_created_by: Mapped[str] = mapped_column(String, nullable=True)
+    po_status: Mapped[str] = mapped_column(String, nullable=False, default="OPEN")
+    item_no: Mapped[str] = mapped_column(String, ForeignKey("items.item_no"), nullable=True)
+    item_description: Mapped[str] = mapped_column(String, nullable=True)
+    quantity_ordered: Mapped[int] = mapped_column(Integer, nullable=True)
+    quantity_outstanding: Mapped[int] = mapped_column(Integer, nullable=True)
+    unit_of_measure: Mapped[str] = mapped_column(String, nullable=True)
+    unit_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    currency_code: Mapped[str] = mapped_column(String, nullable=False, default="USD")
+    mrp_need_by_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    original_promise_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    latest_promise_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    ots_promise_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    item_category_id: Mapped[str] = mapped_column(String, nullable=True)
+    incoterm: Mapped[str] = mapped_column(String, nullable=True)
+    incoterm_named_place: Mapped[str] = mapped_column(String, nullable=True)
+    payment_term: Mapped[str] = mapped_column(String, nullable=True)
+    supplier_email: Mapped[str] = mapped_column(String, nullable=True)
+    purchasing_group: Mapped[str] = mapped_column(String, nullable=True)
+    shipment_mode: Mapped[str] = mapped_column(String, nullable=True)
+    po_line_ack_status: Mapped[str] = mapped_column(String, nullable=True)
+    po_line_ack_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    savings_type: Mapped[str] = mapped_column(String, nullable=True)
+    savings: Mapped[int] = mapped_column(Integer, nullable=True)
+    std_unit_cost: Mapped[float] = mapped_column(Float, nullable=True)
+    except_message: Mapped[str] = mapped_column(String, nullable=True)
+    rescheduling_date: Mapped[Date] = mapped_column(Date, nullable=True)
+    po_feedback: Mapped[str] = mapped_column(String, nullable=True)
+
+    supplier = relationship("SupplierMaster", lazy="joined")
+    location = relationship("LocationMaster", lazy="joined")
+    item = relationship("ItemMaster", lazy="joined")

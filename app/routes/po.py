@@ -14,7 +14,14 @@ from jose import JWTError
 from app.db.models import PODocument, POStatusHistory
 from app.db.session import SessionLocal
 from app.utils.auth import decode_token, extract_bearer_token
-from app.utils.postgres_db import find_one, insert_one, query_items, replace_one
+from app.utils.postgres_db import (
+    find_one,
+    find_relational_purchase_order,
+    insert_one,
+    query_items,
+    query_relational_purchase_orders,
+    replace_one,
+)
 
 router = APIRouter(prefix="/po", tags=["Purchase Orders"])
 logger = logging.getLogger(__name__)
@@ -214,6 +221,21 @@ def _normalize_po(po: Dict) -> Dict:
     normalized["last_modified_date"] = normalized.get("last_modified_date", "")
 
     return normalized
+
+
+def _load_pos() -> List[Dict]:
+    pos = query_relational_purchase_orders()
+    if pos:
+        return [_normalize_po(po) for po in pos]
+    return [_normalize_po(po) for po in query_items("purchase_orders")]
+
+
+def _load_po(po_id: str) -> Optional[Dict]:
+    po = find_relational_purchase_order(po_id)
+    if po:
+        return _normalize_po(po)
+    existing = find_one("purchase_orders", {"id": po_id})
+    return _normalize_po(existing) if existing else None
 
 
 def _get_role_ui_config(role: str) -> Dict:
@@ -554,8 +576,7 @@ def get_pos(
     revision_changes: int = None,
 ):
     current_user = _current_user(authorization)
-    pos = query_items("purchase_orders")
-    pos = [_normalize_po(po) for po in pos]
+    pos = _load_pos()
     pos = [po for po in pos if _can_access_po(po, current_user)]
     
     # filter if pinnedPos not empty
@@ -704,8 +725,7 @@ def get_pinned_pos(
     if current_user.get("role") != "ADMIN" and current_user.get("id") != user_id:
         raise HTTPException(status_code=403, detail="Forbidden to access pinned PO list")
 
-    pos = query_items("purchase_orders")
-    pos = [_normalize_po(po) for po in pos]
+    pos = _load_pos()
     pos = [po for po in pos if _can_access_po(po, current_user)]
     pinned_po_ids = []
 
@@ -734,12 +754,10 @@ def get_pinned_pos(
 @router.get("/{po_id}")
 def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    po = find_one("purchase_orders", {"id": po_id})
+    po = _load_po(po_id)
 
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
-    
-    # all_suppliers = query_items("suppliers")
     
     # supplier_map = {}
     # for s in all_suppliers:
