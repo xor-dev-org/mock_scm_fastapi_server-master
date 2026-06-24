@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import uuid
-from app.utils.mongo_db import find_one, query_items, insert_one, update_one, delete_one
+from app.utils.postgres_db import find_one, query_items, insert_one, update_one, delete_one
 
 router = APIRouter(prefix="/delegation", tags=["Delegations"])
 

@@ -5,7 +5,7 @@
 - Supplier custom authentication
 - Purchase Order CRUD APIs
 - Azure Communication Services chat integration
-- Azure Cosmos DB storage for chat session/message metadata
+- PostgreSQL persistence for users, suppliers, purchase orders, delegations, and chat metadata
 - Pagination and filtering
 - RBAC-ready responses
 - PO relationships with Procurement Specialist and Supplier
@@ -52,21 +52,17 @@ http://127.0.0.1:8000/docs
 
 ---
 
-## Azure Configuration (Chat)
+## Database Configuration (PostgreSQL)
 
-Chat endpoints are now backed by Azure Cosmos DB and no longer use local JSON files for chat metadata.
+Application data is now persisted in PostgreSQL (not JSON files at runtime).
 
-Set these environment variables before running:
+Set this environment variable before running:
 
-- `AZURE_COSMOS_ENDPOINT`
-- `AZURE_COSMOS_KEY`
-- `AZURE_COSMOS_DATABASE` (default: `procurement`)
-- `AZURE_COSMOS_CHAT_SESSIONS_CONTAINER` (default: `chat_sessions`)
-- `AZURE_COSMOS_CHAT_MESSAGES_CONTAINER` (default: `chat_messages`)
-- `AZURE_COSMOS_CHAT_USER_MAP_CONTAINER` (default: `chat_user_map`)
-- `AZURE_COSMOS_USERS_CONTAINER` (default: `users`)
-- `AZURE_COSMOS_SUPPLIERS_CONTAINER` (default: `suppliers`)
-- `AZURE_COSMOS_PURCHASE_ORDERS_CONTAINER` (default: `purchase_orders`)
+- `DATABASE_URL` (example: `postgresql+psycopg://postgres:postgres@localhost:5432/scm_procurement`)
+
+Seed JSON files under `data/` are used only to initialize empty tables on first startup.
+
+## Azure Configuration (Chat Integrations)
 
 Optional realtime/Azure chat variables:
 
@@ -97,8 +93,8 @@ Email/password authentication.
 ## Important Mock Notes
 - JWT token is mocked
 - MSAL login is simulated
-- Legacy procurement APIs may still use mock JSON storage until full migration
-- Chat metadata storage is Azure Cosmos DB
+- Runtime persistence is PostgreSQL
+- JSON files are seed-only inputs
 - RBAC information is returned in token payload
 
 ---
@@ -124,5 +120,10 @@ GET /po?status=APPROVED&supplier_id=SUP-001
 - 5 Suppliers
 - 1 Admin
 - 150 Purchase Orders
+
+## Excel Seed Workflow
+- Purchase order seed data is generated locally from an Excel file into `data/purchase_orders.json`
+- Do not commit `.xlsx`/`.xls` source files to GitHub
+- Use `OPEN_PO_EXCEL_PATH` or run `python scripts/seed_purchase_orders_from_excel.py <path-to-xlsx>` to regenerate JSON
 
 ---

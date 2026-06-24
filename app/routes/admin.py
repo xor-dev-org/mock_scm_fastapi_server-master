@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.utils.mongo_db import find_one, find_many, update_one
+from app.utils.postgres_db import find_one, find_many, update_one
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
