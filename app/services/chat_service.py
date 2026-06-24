@@ -74,9 +74,10 @@ class ChatService:
             display_name=display_name or acs_user_id,
         )
 
+        token_response = self.create_token(participant_user)
+        token = token_response.token
         token_credential = CommunicationTokenCredential(token)
         chat_client = ChatClient(endpoint=self.endpoint_url, credential=token_credential)
 
         thread_client = chat_client.get_chat_thread_client(thread_id)
         return thread_client.add_participants([participant])
- 

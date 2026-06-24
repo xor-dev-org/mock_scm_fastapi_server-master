@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth_service.database.db import get_db
-from auth_service.database.model import Chat
-from auth_service.dto.procurement_specialist import AddChatParticipant, StartChatThread
-from auth_service.services.chat_service import ChatService
-from auth_service.services.websocket_service import WebSocketConnectionManager
+from app.database.db import get_db
+from app.database.models import Chat
+from app.dto.chat_dto import AddChatParticipant, StartChatThread
+from app.services.chat_service import ChatService
+from app.services.websocket_service import WebSocketConnectionManager
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 

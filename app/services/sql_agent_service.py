@@ -8,9 +8,11 @@ from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from langchain_community.utilities import SQLDatabase
 from langchain_openai import AzureChatOpenAI
 
+from app.utils.prompts import PROMPT, SYS_PROMPT
+
 logger = logging.getLogger(__name__)
 
-SQL_DATABASE_URI = os.getenv("SQL_DATABASE_URI")
+SQL_DATABASE_URI = os.getenv("DATABASE_URI")
 SQL_AGENT_TABLES = ["purchase_orders", "items", "suppliers", "locations"]
 
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
@@ -66,6 +68,8 @@ class SQLAgentService:
                 llm=llm,
                 toolkit=toolkit,
                 agent_type="tool-calling",
+                prefix=SYS_PROMPT,
+                suffix=PROMPT,
                 verbose=False,
             )
             logger.info("sql_agent.initialized tables=%s", SQL_AGENT_TABLES)
@@ -91,4 +95,3 @@ class SQLAgentService:
             return {"error": "Failed to answer the question using the SQL agent."}
 
 
-sql_agent_service = SQLAgentService()

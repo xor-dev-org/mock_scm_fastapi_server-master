@@ -37,10 +37,12 @@ myenv/
 *.log
 
 *.ipynb
+.~lock*
 
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # VS Code
 .vscode/
