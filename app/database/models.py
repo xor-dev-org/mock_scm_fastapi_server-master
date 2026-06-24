@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import ARRAY, BOOLEAN, DATE, FLOAT, JSON, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BOOLEAN, DATE, FLOAT, JSON, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.db import Base
@@ -11,6 +12,8 @@ class Chat(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     thread_id = Column(String)
     token = Column(String)
+    # participants[0] is treated as the thread creator (see chat_controller.py),
+    # since ACS only lets an existing thread member invite new participants.
     participants = Column(ARRAY(String))
 
 

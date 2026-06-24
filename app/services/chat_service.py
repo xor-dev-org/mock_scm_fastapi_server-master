@@ -46,6 +46,10 @@ class ChatService:
             scopes = ["chat"]
         return self.identity_client.get_token(user, scopes=scopes)
 
+    def mint_token(self, acs_user_id: str, scopes: Optional[List[str]] = None) -> str:
+        """Issue a fresh access token for an already-created ACS identity."""
+        return self.create_token(CommunicationUserIdentifier(acs_user_id), scopes=scopes).token
+
     def create_chat_thread(
         self,
         starter_acs_user_id: str,
@@ -66,18 +70,42 @@ class ChatService:
         thread_result = chat_client.create_chat_thread(topic, thread_participants=[starter])
         return chat_client.get_chat_thread_client(thread_result.chat_thread.id), token
 
-    def add_participant(self, thread_id: str, token: str, acs_user_id: str, display_name: Optional[str] = None):
-        """Invite or add a remote participant to an existing chat thread."""
+    def add_participant(
+        self,
+        thread_id: str,
+        inviter_token: str,
+        acs_user_id: str,
+        display_name: Optional[str] = None,
+    ) -> str:
+        """Add a participant to an existing chat thread.
+
+        ACS only allows an existing thread member to invite new participants, so
+        `inviter_token` must belong to a user already in the thread (e.g. the
+        thread creator) - it is NOT the new participant's own token. Returns a
+        freshly minted token for the new participant so they can connect to the
+        thread directly.
+
+        If the participant is already a thread member, this is a no-op (idempotent)
+        rather than re-inviting them.
+        """
         participant_user = CommunicationUserIdentifier(acs_user_id)
-        participant = ChatParticipant(
-            identifier=participant_user,
-            display_name=display_name or acs_user_id,
+
+        inviter_credential = CommunicationTokenCredential(inviter_token)
+        chat_client = ChatClient(endpoint=self.endpoint_url, credential=inviter_credential)
+        thread_client = chat_client.get_chat_thread_client(thread_id)
+
+        already_member = any(
+            existing.identifier.raw_id == acs_user_id for existing in thread_client.list_participants()
         )
 
-        token_response = self.create_token(participant_user)
-        token = token_response.token
-        token_credential = CommunicationTokenCredential(token)
-        chat_client = ChatClient(endpoint=self.endpoint_url, credential=token_credential)
+        if not already_member:
+            participant = ChatParticipant(
+                identifier=participant_user,
+                display_name=display_name or acs_user_id,
+            )
+            errors = thread_client.add_participants([participant])
+            if errors:
+                details = "; ".join(f"{p.identifier.raw_id}: {err.message}" for p, err in errors)
+                raise RuntimeError(f"Failed to add participant to thread {thread_id}: {details}")
 
-        thread_client = chat_client.get_chat_thread_client(thread_id)
-        return thread_client.add_participants([participant])
+        return self.create_token(participant_user).token
