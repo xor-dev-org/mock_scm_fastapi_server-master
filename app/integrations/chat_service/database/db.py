@@ -1,10 +1,16 @@
 import os
-from pymongo import MongoClient
+from app.utils.postgres_db import find_one as pg_find_one
+from app.utils.postgres_db import insert_one as pg_insert_one
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "scm_procurement")
+CHAT_COLLECTION_NAME = os.getenv("CHAT_COLLECTION_NAME", "acs_chat_collection")
 
-client = MongoClient(MONGODB_URL)
-database = client[DATABASE_NAME]
 
-chat_collection = database["chat"]
+class PostgresChatCollection:
+    def find_one(self, filter_value):
+        return pg_find_one(CHAT_COLLECTION_NAME, filter_value)
+
+    def insert_one(self, document):
+        return pg_insert_one(CHAT_COLLECTION_NAME, document)
+
+
+chat_collection = PostgresChatCollection()

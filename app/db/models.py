@@ -253,7 +253,22 @@ class ChatSession(Base):
     )
 
 
-class ChatMessage(Base):
+class ACSChatCollection(Base):
+    __tablename__ = "acs_chat_collection"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    thread_id: Mapped[str] = mapped_column(String, index=True)
+    po_number: Mapped[str] = mapped_column(String, index=True)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+
+class ChatMessageCollection(Base):
     __tablename__ = "chat_messages"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)

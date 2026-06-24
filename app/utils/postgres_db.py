@@ -23,6 +23,14 @@ from app.db.models import (
     PurchaseOrderLine,
     SupplierMaster,
     User,
+    ACSChatCollection,
+    ChatMessageCollection,
+    ChatSessionCollection,
+    ChatUserMapCollection,
+    DelegationCollection,
+    PurchaseOrderCollection,
+    SupplierCollection,
+    UserCollection,
 )
 from app.db.session import Base, DATABASE_URL, SessionLocal, engine
 
@@ -33,6 +41,27 @@ CANONICAL_DIR = DATA_DIR / "canonical"
 logger = logging.getLogger(__name__)
 
 NULL_STRINGS = {"NULL", "NONE", "N/A", "NA", "NAN"}
+CollectionModel = Type[
+    UserCollection
+    | SupplierCollection
+    | PurchaseOrderCollection
+    | DelegationCollection
+    | ChatSessionCollection
+    | ACSChatCollection
+    | ChatMessageCollection
+    | ChatUserMapCollection
+]
+
+COLLECTION_MODELS: Dict[str, CollectionModel] = {
+    "users": UserCollection,
+    "suppliers": SupplierCollection,
+    "purchase_orders": PurchaseOrderCollection,
+    "delegations": DelegationCollection,
+    "chat_sessions": ChatSessionCollection,
+    "acs_chat_collection": ACSChatCollection,
+    "chat_messages": ChatMessageCollection,
+    "chat_user_map": ChatUserMapCollection,
+}
 
 
 @contextmanager
@@ -92,6 +121,22 @@ def _safe_bool(value: Any, default: Optional[bool] = None) -> Optional[bool]:
     if normalized in {"0", "false", "no", "n", "f"}:
         return False
     return default
+def _matches_filter(document: Dict[str, Any], filter_value: Dict[str, Any]) -> bool:
+    for key, expected in filter_value.items():
+        actual = document.get(key)
+
+        if isinstance(expected, dict):
+            if "$all" in expected:
+                required_values = expected.get("$all") or []
+                if not isinstance(actual, list):
+                    return False
+                if not all(item in actual for item in required_values):
+                    return False
+                continue
+
+        if actual != expected:
+            return False
+    return True
 
 
 def _safe_date(value: Any) -> Optional[date]:
@@ -361,6 +406,32 @@ def _ensure_item(session: Session, item_no: str, location_id: int) -> None:
             is_safety_stock=False,
         )
     )
+
+    if isinstance(row, DelegationCollection):
+        row.status = payload.get("status")
+        row.delegated_from_id = payload.get("delegated_from_id")
+        row.delegated_to_id = payload.get("delegated_to_id")
+        row.po_id = payload.get("po_id")
+        return
+
+    if isinstance(row, ChatSessionCollection):
+        row.po_id = payload.get("po_id")
+        row.status = payload.get("status")
+        row.chat_type = payload.get("chat_type")
+        return
+
+    if isinstance(row, ACSChatCollection):
+        row.thread_id = payload.get("thread_id")
+        row.po_number = payload.get("po_number")
+        return
+
+    if isinstance(row, ChatMessageCollection):
+        row.session_id = payload.get("session_id")
+        row.sender_id = payload.get("sender_id")
+        return
+
+    if isinstance(row, ChatUserMapCollection):
+        row.internal_user_id = payload.get("internal_user_id")
 
 
 def _seed_purchase_orders(session: Session, po_rows: List[Dict[str, Any]]) -> None:
