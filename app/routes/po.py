@@ -1,5 +1,5 @@
 from copy import deepcopy
-from turtle import pos
+
 from typing import List
 
 from app.utils.mongo_db import find_one, query_items, insert_one, replace_one, update_one
@@ -497,14 +497,32 @@ def get_pos(
             ).date() <= to_date
         ]
 
+    #include buyer details in the PO list
+    enrich_buyer_details(pos)
+
     # Search filter
     if search:
-        search_lower = search.lower()
+        search_lower = search.lower().strip()
+
         pos = [
             p
             for p in pos
-            if search_lower in p.get("po_number", "").lower()
-            or search_lower in p.get("supplier_name", "").lower()
+            if (
+                search_lower in p.get("po_number", "").lower()
+                or search_lower in p.get("supplier_name", "").lower()
+                or search_lower in p.get("supplier_email", "").lower()
+                or search_lower in p.get("supplier_id", "").lower()
+                or search_lower in p.get("site", "").lower()
+                or search_lower in p.get("status", "").lower()
+                or search_lower in p.get("source_system", "").lower()
+                or search_lower in p.get("buyer_name", "").lower()
+                or search_lower in p.get("buyer_email", "").lower()
+                or any(
+                    search_lower in item.get("material_code", "").lower()
+                    or search_lower in item.get("description", "").lower()
+                    for item in p.get("line_items", [])
+                )
+            )
         ]
 
     # Sorting
@@ -512,9 +530,6 @@ def get_pos(
     #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""))
     # elif sort_by == "delivery_date_desc":
     #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""), reverse=True)
-
-    #include buyer details in the PO list
-    enrich_buyer_details(pos)
 
     if sort_by is not None:
         pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
