@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.utils.mongo_db import query_items
+from app.utils.postgres_db import query_items
 
 router = APIRouter(prefix="/suppliers", tags=["Suppliers"])
 

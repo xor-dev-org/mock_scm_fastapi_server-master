@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from app.utils.mongo_db import find_one, insert_one, query_items, update_one, upsert_one
+from app.utils.postgres_db import find_one, insert_one, query_items, update_one, upsert_one
 
 CHAT_SESSIONS_COLLECTION = os.getenv("CHAT_SESSIONS_COLLECTION", "chat_sessions")
 CHAT_MESSAGES_COLLECTION = os.getenv("CHAT_MESSAGES_COLLECTION", "chat_messages")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.utils.mongo_db import find_one, insert_one
+from app.utils.postgres_db import find_one, insert_one
 from app.utils.auth import create_token
 import uuid
 
