@@ -51,27 +51,6 @@ class SupplierAuth(Base):
         onupdate=datetime.utcnow,
     )
 
-
-# class PurchaseOrderCollection(Base):
-#     __tablename__ = "purchase_orders"
-
-#     id: Mapped[str] = mapped_column(String, primary_key=True)
-#     po_number: Mapped[str] = mapped_column(String, index=True)
-#     status: Mapped[str] = mapped_column(String, index=True)
-#     supplier_id: Mapped[str] = mapped_column(String, index=True)
-#     procurement_specialist_id: Mapped[str] = mapped_column(String, index=True)
-#     delivery_date: Mapped[str] = mapped_column(String, index=True)
-#     mrp_need_by_date: Mapped[Date] = mapped_column(Date, nullable=True)
-#     data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-#     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-#     updated_at: Mapped[datetime] = mapped_column(
-#         DateTime,
-#         default=datetime.utcnow,
-#         onupdate=datetime.utcnow,
-#     )
-
-# Base.registry.dispose()
-
 class Supplier(Base):
     __tablename__ = "suppliers"
     __table_args__ = {'extend_existing': True}
@@ -351,40 +330,4 @@ class POLineSplit(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
-class SupplierMaster(Base):
-    __tablename__ = "supplier_master"
 
-    msid: Mapped[str] = mapped_column(String, primary_key=True)
-    supplier_name: Mapped[str] = mapped_column(String, nullable=False)
-    supplier_dba_name: Mapped[str] = mapped_column(String)
-    category_id: Mapped[str] = mapped_column(String)
-    category_id2: Mapped[str] = mapped_column(String)
-    slp_id: Mapped[str] = mapped_column(String)
-    address: Mapped[str] = mapped_column(String)
-    city: Mapped[str] = mapped_column(String)
-    state_province: Mapped[str] = mapped_column(String)
-    iso_country_code: Mapped[str] = mapped_column(String)
-    postal_code: Mapped[str] = mapped_column(String)
-    payment_term: Mapped[str] = mapped_column(String)
-    incoterm: Mapped[str] = mapped_column(String)
-    approval_status: Mapped[str] = mapped_column(String)
-    assigned_sqe: Mapped[str] = mapped_column(String)
-    supplier_manager: Mapped[str] = mapped_column(String)
-    is_archived: Mapped[bool] = mapped_column()
-
-
-class LocationMaster(Base):
-    __tablename__ = "location"
-
-    location_id: Mapped[str] = mapped_column(String, primary_key=True)
-    location_name: Mapped[str] = mapped_column(String, nullable=False)
-    platform: Mapped[str] = mapped_column(String, nullable=False)
-    iso_country_code: Mapped[str] = mapped_column(String, nullable=False)
-    address: Mapped[str] = mapped_column(String)
-    city: Mapped[str] = mapped_column(String)
-    state_province: Mapped[str] = mapped_column(String)
-    postal_code: Mapped[str] = mapped_column(String)
-    operation: Mapped[str] = mapped_column(String)
-    sector: Mapped[str] = mapped_column(String)
-    division: Mapped[str] = mapped_column(String)
-    is_archived: Mapped[bool] = mapped_column(default=False)
