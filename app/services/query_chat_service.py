@@ -16,7 +16,7 @@ conn = psycopg.connect(
 )
 
 client = OpenAI(
-    api_key="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",
+    api_key="",
     base_url="https://openrouter.ai/api/v1"
 )
 
