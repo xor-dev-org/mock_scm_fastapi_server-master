@@ -365,6 +365,16 @@ def enrich_buyer_details(pos):
         po["buyer_email"] = ps.get("email", "") if ps else ""
         po["buyer_phone"] = ps.get("phone", "") if ps else ""
 
+def _parse_csv_filter(value: Optional[str]) -> List[str]:
+    if not value:
+        return []
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
+
 @router.get("")
 def get_pos(
     page: int = 1,
@@ -409,7 +419,14 @@ def get_pos(
         pos = [p for p in pos if p["supplier_email"] == supplier_email]
 
     if site:
-        pos = [p for p in pos if p["site"] == site]
+        selected_sites = _parse_csv_filter(site)
+
+        if selected_sites:
+            pos = [
+                p
+                for p in pos
+                if p.get("site") in selected_sites
+            ]
 
     if procurement_specialist_id:
         pos = [
@@ -582,6 +599,26 @@ def get_pinned_pos(
         "page_size": page_size,
         "total": total,
         "data": pos[start:end],
+    }
+
+@router.get("/config/sites")
+def get_available_sites(authorization: Optional[str] = Header(default=None)):
+    current_user = _current_user(authorization)
+
+    pos = query_items("purchase_orders")
+    pos = [_normalize_po(po) for po in pos]
+    pos = [po for po in pos if _can_access_po(po, current_user)]
+
+    sites = sorted(
+        {
+            po.get("site")
+            for po in pos
+            if po.get("site")
+        }
+    )
+
+    return {
+        "sites": sites
     }
 
 @router.get("/{po_id}")
