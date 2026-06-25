@@ -8,7 +8,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Type
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
@@ -1138,3 +1138,119 @@ def initialize_database() -> None:
     _ensure_database_exists()
     Base.metadata.create_all(bind=engine)
     seed_relational_data(force_reset=False)
+
+
+def find_one(collection_name: str, filter_value: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    items = query_items(collection_name, filter_value)
+    return items[0] if items else None
+
+
+def find_many(collection_name: str, filter_value: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    return query_items(collection_name, filter_value)
+
+def insert_one(collection_name: str, document: Dict[str, Any]) -> Dict[str, Any]:
+    model = _get_model(collection_name)
+    payload = _clean_document(document) or {}
+
+    with _session_scope() as session:
+        row = _build_row(model, payload)
+        session.add(row)
+
+    logger.info("postgres.insert_one collection=%s id=%s", collection_name, payload.get("id"))
+    return payload
+
+def query_items(collection_name: str, filter_value: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    model = _get_model(collection_name)
+    normalized = _normalize_filter(filter_value)
+
+    with _session_scope() as session:
+        rows = session.query(model).all()
+        documents = [_row_to_document(row) for row in rows]
+        if not normalized:
+            return documents
+        return [document for document in documents if _matches_filter(document, normalized)]
+
+def _get_model(collection_name: str) -> CollectionModel:
+    model = COLLECTION_MODELS.get(collection_name)
+    if not model:
+        raise ValueError(f"Unsupported collection '{collection_name}'")
+    return model
+
+def _normalize_filter(filter_value: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    if not filter_value:
+        return normalized
+
+    for key, value in filter_value.items():
+        normalized_key = "id" if key == "_id" else key
+        normalized[normalized_key] = value
+    return normalized
+
+
+def _clean_document(document: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if document is None:
+        return None
+    cleaned = dict(document)
+    cleaned.pop("_id", None)
+    return cleaned
+
+def _build_row(model: CollectionModel, payload: Dict[str, Any]) -> Any:
+    row_id = payload.get("id") or str(uuid.uuid4())
+    payload["id"] = row_id
+    row = model(id=row_id, data=payload)
+    _apply_index_fields(row, payload)
+    return row
+
+def _apply_index_fields(row: Any, payload: Dict[str, Any]) -> None:
+    if isinstance(row, UserCollection):
+        row.email = payload.get("email")
+        row.role = payload.get("role")
+        row.name = payload.get("name")
+        return
+
+    if isinstance(row, SupplierCollection):
+        row.email = payload.get("email")
+        row.role = payload.get("role")
+        row.name = payload.get("name")
+        return
+
+    if isinstance(row, PurchaseOrderCollection):
+        row.po_number = payload.get("po_number")
+        row.status = payload.get("status")
+        row.supplier_id = payload.get("supplier_id")
+        row.procurement_specialist_id = payload.get("procurement_specialist_id")
+        row.delivery_date = payload.get("delivery_date")
+        row.mrp_need_by_date = _safe_date(payload.get("mrp_need_by_date"))
+        return
+
+    if isinstance(row, DelegationCollection):
+        row.status = payload.get("status")
+        row.delegated_from_id = payload.get("delegated_from_id")
+        row.delegated_to_id = payload.get("delegated_to_id")
+        row.po_id = payload.get("po_id")
+        return
+
+    if isinstance(row, ChatSessionCollection):
+        row.po_id = payload.get("po_id")
+        row.status = payload.get("status")
+        row.chat_type = payload.get("chat_type")
+        return
+
+    if isinstance(row, ACSChatCollection):
+        row.thread_id = payload.get("thread_id")
+        row.po_number = payload.get("po_number")
+        return
+
+    if isinstance(row, ChatMessageCollection):
+        row.session_id = payload.get("session_id")
+        row.sender_id = payload.get("sender_id")
+        return
+
+    if isinstance(row, ChatUserMapCollection):
+        row.internal_user_id = payload.get("internal_user_id")
+
+
+def _row_to_document(row: Any) -> Dict[str, Any]:
+    payload = dict(row.data or {})
+    payload["id"] = row.id
+    return _clean_document(payload) or {}
