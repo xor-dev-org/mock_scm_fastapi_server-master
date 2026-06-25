@@ -117,6 +117,7 @@ def _current_user(authorization: Optional[str]) -> Dict:
         "name": user.name,
         "email": user.email,
         "role": user.role,
+        "supplier_msid": user.supplier_msid,
     }
 
 
@@ -128,7 +129,11 @@ def _can_access_po(po: Dict, current_user: Dict) -> bool:
         return True
 
     if role == "SUPPLIER":
-        return po.get("supplier_id") == user_id
+        user_supplier_msid = current_user.get("supplier_msid")
+        po_supplier_msid = po.get("supplier_msid")
+        if user_supplier_msid is None or po_supplier_msid is None:
+            return False
+        return str(user_supplier_msid) == str(po_supplier_msid)
 
     if role == "PROCUREMENT_SPECIALIST":
         return user_id in {
@@ -182,17 +187,43 @@ def _normalize_line_item(line_item: Dict, index: int) -> Dict:
     return {
         "id": line_id,
         "line_number": line_number,
+        "po_line_no": line_item.get("po_line_no") or line_number,
+        "po_release_no": line_item.get("po_release_no"),
+        "po_line_revision_no": line_item.get("po_line_revision_no"),
+        "po_line_issue_date": line_item.get("po_line_issue_date"),
         "material_code": line_item.get("material_code") or line_item.get("materialNo") or "",
         "description": line_item.get("description", ""),
         "quantity": quantity,
+        "quantity_outstanding": line_item.get("quantity_outstanding"),
         "unit_price": unit_price,
+        "currency_code": line_item.get("currency_code"),
         "unit": line_item.get("unit", "EA"),
         "per": line_item.get("per", 1),
         "supplier_mat_code": line_item.get("supplier_mat_code") or line_item.get("supplierMatCode", ""),
         "transportation": line_item.get("transportation", "PARCEL-GROUND B"),
         "shipment_date": line_item.get("shipment_date", ""),
+        "original_promise_date": line_item.get("original_promise_date"),
+        "latest_promise_date": line_item.get("latest_promise_date"),
         "required_in_house_date": line_item.get("required_in_house_date", ""),
         "net_value": line_item.get("net_value", round(quantity * unit_price, 2)),
+        "item_category_id": line_item.get("item_category_id"),
+        "incoterm": line_item.get("incoterm"),
+        "incoterm_named_place": line_item.get("incoterm_named_place"),
+        "payment_term": line_item.get("payment_term"),
+        "purchasing_group": line_item.get("purchasing_group"),
+        "shipment_mode": line_item.get("shipment_mode"),
+        "po_line_ack_status": line_item.get("po_line_ack_status"),
+        "po_line_ack_date": line_item.get("po_line_ack_date"),
+        "savings_type": line_item.get("savings_type"),
+        "savings": line_item.get("savings"),
+        "std_unit_cost": line_item.get("std_unit_cost"),
+        "erp_extract_date": line_item.get("erp_extract_date"),
+        "except_message": line_item.get("except_message"),
+        "rescheduling_date": line_item.get("rescheduling_date"),
+        "po_feedback": line_item.get("po_feedback"),
+        "drawing_no": line_item.get("drawing_no"),
+        "drawing_revision": line_item.get("drawing_revision"),
+        "seals_ord_no": line_item.get("seals_ord_no"),
         "updated_quantity": line_item.get("updated_quantity"),
         "updated_unit_price": line_item.get("updated_unit_price"),
         "updated_delivery_date": line_item.get("updated_delivery_date"),

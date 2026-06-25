@@ -27,37 +27,104 @@ PO_FIELD_CANDIDATES = [
 ]
 
 SUPPLIER_FIELD_CANDIDATES = [
+    "local_supplier_nm",
     "supplier_name",
     "supplier",
     "vendor",
     "vendor_name",
 ]
 
-SUPPLIER_ID_FIELD_CANDIDATES = ["supplier_id", "vendor_id", "suppliercode", "vendor_code"]
+SUPPLIER_ID_FIELD_CANDIDATES = [
+    "local_supplier_id",
+    "msid",
+    "src_msid",
+    "supplier_id",
+    "vendor_id",
+    "suppliercode",
+    "vendor_code",
+]
 
 SUPPLIER_EMAIL_FIELD_CANDIDATES = ["supplier_email", "email", "vendor_email"]
 
-SITE_FIELD_CANDIDATES = ["site", "location", "plant"]
+SITE_FIELD_CANDIDATES = ["site_cd", "site", "location", "plant", "vendor_site_id", "location_id"]
 
 STATUS_FIELD_CANDIDATES = ["status", "po_status", "purchase_order_status"]
 
-SOURCE_FIELD_CANDIDATES = ["source_system", "source", "system"]
+SOURCE_FIELD_CANDIDATES = ["source_system_cd", "source_system", "source", "system"]
 
-DELIVERY_FIELD_CANDIDATES = ["delivery_date", "delivery", "ship_date", "ship_date"]
+PERIOD_DATE_CANDIDATES = ["period_dt", "period_date"]
 
-MRP_FIELD_CANDIDATES = ["mrp_need_by_date", "mrp_date", "mrp", "mrp_exceptions"]
+PO_RELEASE_CANDIDATES = ["po_release_no", "release_no"]
 
-CREATED_DATE_CANDIDATES = ["created_date", "creation_date", "po_date"]
+PO_LINE_REVISION_CANDIDATES = ["po_line_revision_no", "line_revision_no"]
 
-PAYMENT_TERMS_CANDIDATES = ["payment_terms", "terms"]
+PO_LINE_ISSUE_DATE_CANDIDATES = ["po_line_issue_dt", "po_line_issue_date"]
 
-PROCUREMENT_SPECIALIST_CANDIDATES = ["procurement_specialist_id", "ps_id", "buyer_id"]
+ORIGINAL_PROMISE_CANDIDATES = [
+    "original_prom_date",
+    "original_promise_date",
+    "original_promise_date1",
+    "original_promise_date2",
+    "original_promise_date3",
+    "original_promise_date4",
+]
+
+OTS_PROMISE_CANDIDATES = ["ots_promise_date", "ots_promise__date", "shipment_date"]
+
+PO_LINE_ACK_STATUS_CANDIDATES = ["po_line_ackn_status", "po_line_ack_status"]
+
+PO_LINE_ACK_DATE_CANDIDATES = ["po_line_ackn_dt", "po_line_ack_date"]
+
+SHIPMENT_MODE_CANDIDATES = ["shipment_mode", "ship_via_carrier", "transportation"]
+
+SAVINGS_TYPE_CANDIDATES = ["savings_type"]
+
+SAVINGS_CANDIDATES = ["savings"]
+
+STD_UNIT_COST_CANDIDATES = ["std_unit_cost"]
+
+ERP_EXTRACT_CANDIDATES = ["erp_extract_date"]
+
+EXCEPTION_CANDIDATES = ["except_message", "mrp_exceptions"]
+
+RESCHEDULING_CANDIDATES = ["rescheduling_date"]
+
+PO_FEEDBACK_CANDIDATES = ["po_feedback"]
+
+PURCHASING_GROUP_CANDIDATES = ["purchasing_group"]
+
+INCOTERM_CANDIDATES = ["incoterm"]
+
+INCOTERM_PLACE_CANDIDATES = ["incoterm_named_place"]
+
+ITEM_CATEGORY_CANDIDATES = ["item_category_id", "category_cd_site"]
+
+QUANTITY_OUTSTANDING_CANDIDATES = ["quantity_outstanding"]
+
+CURRENCY_CANDIDATES = ["currency", "currency_code"]
+
+DELIVERY_FIELD_CANDIDATES = [
+    "latest_promise_date",
+    "ots_promise_date",
+    "delivery_date",
+    "delivery",
+    "ship_date",
+]
+
+MRP_FIELD_CANDIDATES = ["mrp_need_by_dt", "mrp_need_by_date", "mrp_date", "mrp", "mrp_exceptions"]
+
+CREATED_DATE_CANDIDATES = ["po_issue_dt", "created_date", "creation_date", "po_date"]
+
+PAYMENT_TERMS_CANDIDATES = ["payment_term", "payment_terms", "terms"]
+
+PROCUREMENT_SPECIALIST_CANDIDATES = ["procurement_specialist_id", "po_created_by", "ps_id", "buyer_id"]
 
 TOTAL_VALUE_CANDIDATES = ["total_value", "po_value", "amount", "total_amount"]
 
-LINE_NUMBER_CANDIDATES = ["line_number", "line_no", "line"]
+LINE_NUMBER_CANDIDATES = ["po_line_no", "line_number", "line_no", "line"]
 
 MATERIAL_CODE_CANDIDATES = [
+    "item_no",
     "material_code",
     "item_code",
     "part_number",
@@ -66,15 +133,16 @@ MATERIAL_CODE_CANDIDATES = [
 ]
 
 DESCRIPTION_CANDIDATES = [
+    "item_desc",
     "description",
     "item_description",
     "part_description",
     "material_description",
 ]
 
-QUANTITY_CANDIDATES = ["quantity", "qty", "order_qty", "ordered_quantity"]
+QUANTITY_CANDIDATES = ["quantity_ord", "quantity", "qty", "order_qty", "ordered_quantity"]
 
-UNIT_PRICE_CANDIDATES = ["unit_price", "price", "unit_cost", "amount"]
+UNIT_PRICE_CANDIDATES = ["unit_cost", "unit_price", "price", "amount"]
 
 LINE_TOTAL_CANDIDATES = ["line_total", "ext_price", "extended_price", "amount"]
 
@@ -84,6 +152,8 @@ DEFAULT_CURRENCY = "USD"
 DEFAULT_PAYMENT_TERMS = "Net 30"
 DEFAULT_MRP_EXCEPTIONS = "NONE"
 DEFAULT_PROCSPEC_ID = "PS-001"
+
+NULL_STRINGS = {"NULL", "NONE", "N/A", "NA", "NAN"}
 
 
 def normalize_header(value: Any) -> str:
@@ -101,6 +171,8 @@ def deserialize_date(value: Any) -> Optional[str]:
     text = str(value).strip()
     if not text:
         return None
+    if text.upper() in NULL_STRINGS:
+        return None
     return text
 
 
@@ -112,16 +184,42 @@ def deserialize_number(value: Any) -> Optional[float]:
     text = str(value).strip().replace(",", "")
     if not text:
         return None
+    if text.upper() in NULL_STRINGS:
+        return None
     try:
         return float(text)
     except ValueError:
         return None
 
 
+def normalize_value(value: Any) -> Optional[Any]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        if text.upper() in NULL_STRINGS:
+            return None
+        return text
+    return value
+
+
+def normalize_text_like(value: Any) -> Optional[str]:
+    normalized = normalize_value(value)
+    if normalized is None:
+        return None
+    if isinstance(normalized, date):
+        return normalized.isoformat()
+    return str(normalized).strip() or None
+
+
 def find_first_value(row: Dict[str, Any], candidates: List[str]) -> Optional[Any]:
     for key in candidates:
-        if key in row and row[key] not in (None, ""):
-            return row[key]
+        if key in row:
+            normalized = normalize_value(row[key])
+            if normalized is not None:
+                return normalized
     return None
 
 
@@ -181,6 +279,13 @@ def group_rows_by_po(data_rows: List[Dict[str, Any]]) -> Dict[str, List[Dict[str
 
 
 def make_line_item(row: Dict[str, Any], line_index: int) -> Dict[str, Any]:
+    line_number_raw = find_first_value(row, LINE_NUMBER_CANDIDATES)
+    if line_number_raw is None or line_number_raw == "":
+        line_number: Any = line_index
+    else:
+        line_number = str(line_number_raw).strip()
+
+    item_no = find_first_value(row, ["item_no"])
     material_code = find_first_value(row, MATERIAL_CODE_CANDIDATES) or f"MAT-{line_index:04d}"
     description = find_first_value(row, DESCRIPTION_CANDIDATES) or "Material"
     quantity = deserialize_number(find_first_value(row, QUANTITY_CANDIDATES)) or 1.0
@@ -193,11 +298,39 @@ def make_line_item(row: Dict[str, Any], line_index: int) -> Dict[str, Any]:
         unit_price = 0.0
 
     return {
-        "line_number": int(row.get("line_number") or row.get("line_no") or line_index),
+        "line_number": line_number,
+        "po_line_no": line_number,
+        "po_release_no": deserialize_number(find_first_value(row, PO_RELEASE_CANDIDATES)),
+        "po_line_revision_no": deserialize_number(find_first_value(row, PO_LINE_REVISION_CANDIDATES)),
+        "po_line_issue_date": deserialize_date(find_first_value(row, PO_LINE_ISSUE_DATE_CANDIDATES)),
+        "item_no": str(item_no).strip() if item_no not in (None, "") else str(material_code).strip(),
         "material_code": str(material_code).strip(),
         "description": str(description).strip(),
         "quantity": int(quantity) if float(quantity).is_integer() else float(quantity),
+        "quantity_outstanding": deserialize_number(find_first_value(row, QUANTITY_OUTSTANDING_CANDIDATES)),
         "unit_price": round(float(unit_price), 2),
+        "currency_code": find_first_value(row, CURRENCY_CANDIDATES),
+        "mrp_need_by_date": deserialize_date(find_first_value(row, MRP_FIELD_CANDIDATES)),
+        "original_promise_date": deserialize_date(find_first_value(row, ORIGINAL_PROMISE_CANDIDATES)),
+        "latest_promise_date": deserialize_date(find_first_value(row, DELIVERY_FIELD_CANDIDATES)),
+        "ots_promise_date": deserialize_date(find_first_value(row, OTS_PROMISE_CANDIDATES)),
+        "item_category_id": find_first_value(row, ITEM_CATEGORY_CANDIDATES),
+        "incoterm": find_first_value(row, INCOTERM_CANDIDATES),
+        "incoterm_named_place": find_first_value(row, INCOTERM_PLACE_CANDIDATES),
+        "shipment_mode": find_first_value(row, SHIPMENT_MODE_CANDIDATES),
+        "po_line_ack_status": find_first_value(row, PO_LINE_ACK_STATUS_CANDIDATES),
+        "po_line_ack_date": deserialize_date(find_first_value(row, PO_LINE_ACK_DATE_CANDIDATES)),
+        "savings_type": find_first_value(row, SAVINGS_TYPE_CANDIDATES),
+        "savings": deserialize_number(find_first_value(row, SAVINGS_CANDIDATES)),
+        "std_unit_cost": deserialize_number(find_first_value(row, STD_UNIT_COST_CANDIDATES)),
+        "erp_extract_date": deserialize_date(find_first_value(row, ERP_EXTRACT_CANDIDATES)),
+        "except_message": normalize_text_like(find_first_value(row, EXCEPTION_CANDIDATES)),
+        "rescheduling_date": deserialize_date(find_first_value(row, RESCHEDULING_CANDIDATES)),
+        "po_feedback": normalize_text_like(find_first_value(row, PO_FEEDBACK_CANDIDATES)),
+        "drawing_no": normalize_text_like(find_first_value(row, ["drawing_no"])),
+        "drawing_revision": normalize_text_like(find_first_value(row, ["drawing_rev", "drawing_revision"])),
+        "seals_ord_no": normalize_text_like(find_first_value(row, ["sales_ord_no", "seals_ord_no"])),
+        "purchasing_group": normalize_text_like(find_first_value(row, PURCHASING_GROUP_CANDIDATES)),
     }
 
 
@@ -211,17 +344,28 @@ def merge_po_fields(rows: List[Dict[str, Any]], supplier_map: Dict[str, str], su
     supplier_email = find_first_value(first_row, SUPPLIER_EMAIL_FIELD_CANDIDATES) or build_supplier_email(
         str(supplier_name) if supplier_name else None, supplier_id
     )
-    site = find_first_value(first_row, SITE_FIELD_CANDIDATES) or f"Site-{supplier_id[-3:]}"
+    supplier_id_text = str(supplier_id).strip()
+    supplier_digits = "".join(ch for ch in supplier_id_text if ch.isdigit())
+    supplier_suffix = supplier_digits[-3:] if supplier_digits else supplier_id_text[-3:]
+
+    site = find_first_value(first_row, SITE_FIELD_CANDIDATES) or f"Site-{supplier_suffix}"
+    location_id = find_first_value(first_row, ["location_id"])
 
     po_number = str(find_first_value(first_row, PO_FIELD_CANDIDATES)).strip()
     status = str(find_first_value(first_row, STATUS_FIELD_CANDIDATES) or DEFAULT_STATUS).strip().upper()
-    source_system = str(find_first_value(first_row, SOURCE_FIELD_CANDIDATES) or DEFAULT_SOURCE).strip().upper()
+    source_system = str(find_first_value(first_row, SOURCE_FIELD_CANDIDATES) or DEFAULT_SOURCE).strip()
+    period_date = deserialize_date(find_first_value(first_row, PERIOD_DATE_CANDIDATES))
     delivery_date = deserialize_date(find_first_value(first_row, DELIVERY_FIELD_CANDIDATES))
     mrp_need_by_date = deserialize_date(find_first_value(first_row, MRP_FIELD_CANDIDATES))
+    po_issue_date = deserialize_date(find_first_value(first_row, ["po_issue_dt", "po_issue_date"]))
     created_date = deserialize_date(find_first_value(first_row, CREATED_DATE_CANDIDATES)) or date.today().isoformat()
     payment_terms = str(find_first_value(first_row, PAYMENT_TERMS_CANDIDATES) or DEFAULT_PAYMENT_TERMS).strip()
     procurement_specialist_id = str(find_first_value(first_row, PROCUREMENT_SPECIALIST_CANDIDATES) or DEFAULT_PROCSPEC_ID).strip()
     total_value = deserialize_number(find_first_value(first_row, TOTAL_VALUE_CANDIDATES))
+    purchasing_group = normalize_text_like(find_first_value(first_row, PURCHASING_GROUP_CANDIDATES))
+    except_message = normalize_text_like(find_first_value(first_row, EXCEPTION_CANDIDATES))
+    incoterm = normalize_text_like(find_first_value(first_row, INCOTERM_CANDIDATES))
+    incoterm_named_place = normalize_text_like(find_first_value(first_row, INCOTERM_PLACE_CANDIDATES))
 
     line_items: List[Dict[str, Any]] = []
     for index, row in enumerate(rows, start=1):
@@ -248,20 +392,32 @@ def merge_po_fields(rows: List[Dict[str, Any]], supplier_map: Dict[str, str], su
 
     return {
         "id": str(uuid.uuid4()),
+        "po_header_id": po_number,
+        "period_date": period_date,
         "po_number": po_number,
         "source_system": source_system,
         "status": status,
-        "supplier_id": supplier_id,
-        "supplier_name": str(supplier_name or f"Supplier {supplier_id[-3:]}" ).strip(),
+        "supplier_id": supplier_id_text,
+        "supplier_msid": _supplier_msid_from_supplier_id(supplier_id_text, supplier_counter[0]),
+        "local_supplier_id": _supplier_msid_from_supplier_id(supplier_id_text, supplier_counter[0]),
+        "supplier_name": str(supplier_name or f"Supplier {supplier_suffix}").strip(),
         "supplier_email": supplier_email,
         "site": str(site),
+        "location_id": location_id,
         "procurement_specialist_id": procurement_specialist_id,
         "delegated_user_id": "",
         "currency": DEFAULT_CURRENCY,
         "total_value": float(total_value),
+        "po_issue_date": po_issue_date or created_date,
         "delivery_date": delivery_date or date.today().isoformat(),
         "mrp_need_by_date": mrp_need_by_date,
         "payment_terms": payment_terms,
+        "purchasing_group": purchasing_group,
+        "incoterm": incoterm,
+        "incoterm_named_place": incoterm_named_place,
+        "mrp_exceptions": except_message or DEFAULT_MRP_EXCEPTIONS,
+        "last_modified_by": procurement_specialist_id,
+        "last_modified_date": delivery_date or created_date,
         "created_date": created_date,
         "revision_changes": 0,
         "line_items": line_items,
@@ -340,7 +496,11 @@ def _derive_reference_data(purchase_orders: List[Dict[str, Any]]) -> Dict[str, L
             }
 
         site = str(order.get("site") or "").strip() or f"Site-{location_fallback}"
-        location_id = _location_id_from_site(site, location_fallback)
+        location_id_raw = order.get("location_id")
+        if location_id_raw in (None, ""):
+            location_id = _location_id_from_site(site, location_fallback)
+        else:
+            location_id = _location_id_from_site(str(location_id_raw), location_fallback)
         location_fallback = max(location_fallback, location_id + 1)
 
         if location_id not in locations_map:

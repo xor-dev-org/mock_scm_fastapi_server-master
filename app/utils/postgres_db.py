@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import os
 import subprocess
@@ -31,6 +32,8 @@ CANONICAL_DIR = DATA_DIR / "canonical"
 
 logger = logging.getLogger(__name__)
 
+NULL_STRINGS = {"NULL", "NONE", "N/A", "NA", "NAN"}
+
 
 @contextmanager
 def _session_scope() -> Iterable[Session]:
@@ -49,6 +52,8 @@ def _safe_str(value: Any) -> Optional[str]:
     if value is None:
         return None
     text = str(value).strip()
+    if text.upper() in NULL_STRINGS:
+        return None
     return text if text else None
 
 
@@ -97,8 +102,14 @@ def _safe_date(value: Any) -> Optional[date]:
     text = str(value).strip()
     if not text:
         return None
+    if text.upper() in NULL_STRINGS:
+        return None
     try:
         return date.fromisoformat(text)
+    except ValueError:
+        pass
+    try:
+        return datetime.fromisoformat(text).date()
     except ValueError:
         return None
 
@@ -353,10 +364,57 @@ def _ensure_item(session: Session, item_no: str, location_id: int) -> None:
 
 
 def _seed_purchase_orders(session: Session, po_rows: List[Dict[str, Any]]) -> None:
+    ps_rows = (
+        session.query(User.id, User.name, User.email)
+        .filter(User.role == "PROCUREMENT_SPECIALIST")
+        .all()
+    )
+    ps_identity_to_id: Dict[str, str] = {}
+    ps_ids: List[str] = []
+    default_ps_id: Optional[str] = None
+    site_to_ps_id: Dict[str, str] = {}
+
+    for row in ps_rows:
+        user_id = _safe_str(row.id)
+        if not user_id:
+            continue
+        if default_ps_id is None:
+            default_ps_id = user_id
+        ps_ids.append(user_id)
+
+        for identity in (row.id, row.name, row.email):
+            identity_text = _safe_str(identity)
+            if identity_text:
+                ps_identity_to_id[identity_text.casefold()] = user_id
+
     for po_idx, order in enumerate(po_rows, start=1):
         po_header_id = _safe_str(order.get("id") or order.get("po_header_id") or order.get("po_number")) or str(uuid.uuid4())
+        session.query(PurchaseOrderLine).filter(PurchaseOrderLine.po_header_id == po_header_id).delete(synchronize_session=False)
         supplier_msid = _to_supplier_msid(_coalesce(order.get("supplier_msid"), order.get("local_supplier_id"), order.get("supplier_id")), 900000 + po_idx)
         location_id = _to_location_id(_coalesce(order.get("location_id"), order.get("site"), order.get("location")), 700000 + po_idx)
+        site_key = (_safe_str(order.get("site")) or _safe_str(order.get("location")) or str(location_id)).casefold()
+        raw_ps_identity = _safe_str(order.get("procurement_specialist_id"))
+        procurement_specialist_id = None
+        # Enforce one PS per site: once a site is assigned, reuse that PS for all its POs.
+        if site_key in site_to_ps_id:
+            procurement_specialist_id = site_to_ps_id[site_key]
+        else:
+            if raw_ps_identity:
+                procurement_specialist_id = ps_identity_to_id.get(raw_ps_identity.casefold())
+                if procurement_specialist_id is None and session.get(User, raw_ps_identity) is not None:
+                    procurement_specialist_id = raw_ps_identity
+                if procurement_specialist_id is None and ps_ids:
+                    digest = hashlib.md5(raw_ps_identity.casefold().encode("utf-8")).hexdigest()
+                    index = int(digest, 16) % len(ps_ids)
+                    procurement_specialist_id = ps_ids[index]
+            if procurement_specialist_id is None and ps_ids:
+                digest = hashlib.md5(site_key.encode("utf-8")).hexdigest()
+                index = int(digest, 16) % len(ps_ids)
+                procurement_specialist_id = ps_ids[index]
+        if procurement_specialist_id is None:
+            procurement_specialist_id = default_ps_id
+        if procurement_specialist_id:
+            site_to_ps_id[site_key] = procurement_specialist_id
 
         if session.get(SupplierMaster, supplier_msid) is None:
             session.add(SupplierMaster(msid=supplier_msid, supplier_name=_safe_str(order.get("supplier_name")) or f"Supplier {supplier_msid}"))
@@ -399,6 +457,36 @@ def _seed_purchase_orders(session: Session, po_rows: List[Dict[str, Any]]) -> No
 
             quantity = _safe_int(line.get("quantity") or line.get("quantity_ordered")) or 0
             unit_price = _safe_float(line.get("unit_price") or line.get("unit_cost")) or 0.0
+            po_issue_date = _safe_date(
+                _coalesce(
+                    order.get("po_issue_date"),
+                    order.get("created_date"),
+                    order.get("period_date"),
+                    line.get("po_line_issue_date"),
+                    line.get("po_line_ack_date"),
+                    line.get("erp_extract_date"),
+                    line.get("original_promise_date"),
+                    line.get("latest_promise_date"),
+                    line.get("shipment_date"),
+                    line.get("required_in_house_date"),
+                    line.get("mrp_need_by_date"),
+                    order.get("delivery_date"),
+                )
+            )
+            po_line_issue_date = _safe_date(
+                _coalesce(
+                    line.get("po_line_issue_date"),
+                    line.get("po_issue_date"),
+                    order.get("po_issue_date"),
+                    order.get("created_date"),
+                    line.get("po_line_ack_date"),
+                    line.get("erp_extract_date"),
+                    line.get("original_promise_date"),
+                    line.get("latest_promise_date"),
+                    line.get("shipment_date"),
+                    po_issue_date,
+                )
+            )
 
             session.add(
                 PurchaseOrderLine(
@@ -411,8 +499,8 @@ def _seed_purchase_orders(session: Session, po_rows: List[Dict[str, Any]]) -> No
                     poline_no=_safe_str(line.get("line_number") or line.get("po_line_no") or str(line_idx)),
                     po_release_no=_safe_int(line.get("po_release_no")),
                     po_line_revision_no=_safe_int(line.get("po_line_revision_no")),
-                    po_issue_date=_safe_date(order.get("po_issue_date") or order.get("created_date")),
-                    po_line_issue_date=_safe_date(line.get("po_line_issue_date") or order.get("created_date")),
+                    po_issue_date=po_issue_date,
+                    po_line_issue_date=po_line_issue_date,
                     po_status=_safe_str(order.get("status") or order.get("po_status")) or "Open",
                     item_no=item_no,
                     item_description=_safe_str(line.get("description") or line.get("item_description")),
@@ -422,9 +510,9 @@ def _seed_purchase_orders(session: Session, po_rows: List[Dict[str, Any]]) -> No
                     unit_cost=unit_price,
                     currency_code=_safe_str(order.get("currency") or line.get("currency_code")) or "USD",
                     mrp_need_by_date=_safe_date(order.get("mrp_need_by_date") or line.get("mrp_need_by_date") or line.get("required_in_house_date")),
-                    original_promise_date=_safe_date(line.get("original_promise_date") or order.get("created_date")),
+                    original_promise_date=_safe_date(line.get("original_promise_date") or line.get("latest_promise_date") or order.get("delivery_date")),
                     latest_promise_date=_safe_date(line.get("latest_promise_date") or order.get("delivery_date")),
-                    ots_promise_date=_safe_date(line.get("ots_promise_date") or line.get("shipment_date")),
+                    ots_promise_date=_safe_date(line.get("ots_promise_date") or line.get("shipment_date") or order.get("delivery_date")),
                     item_category_id=_safe_str(line.get("item_category_id")),
                     incoterm=_safe_str(line.get("incoterm") or order.get("incoterm")),
                     incoterm_named_place=_safe_str(line.get("incoterm_named_place")),
@@ -433,18 +521,18 @@ def _seed_purchase_orders(session: Session, po_rows: List[Dict[str, Any]]) -> No
                     drawing_no=_safe_str(line.get("drawing_no")),
                     drawing_revision=_safe_str(line.get("drawing_revision")),
                     shipment_mode=_safe_str(line.get("shipment_mode")),
-                    po_line_ack_status=_safe_str(line.get("po_line_ack_status") or line.get("line_status")),
-                    po_line_ack_date=_safe_date(line.get("po_line_ack_date")),
+                    po_line_ack_status=_safe_str(line.get("po_line_ack_status") or line.get("po_line_ackn_status") or line.get("line_status")),
+                    po_line_ack_date=_safe_date(line.get("po_line_ack_date") or line.get("po_line_ackn_dt")),
                     savings_type=_safe_str(line.get("savings_type")),
                     savings=_safe_int(line.get("savings")),
                     std_unit_cost=_safe_float(line.get("std_unit_cost")),
-                    erp_extract_date=_safe_date(line.get("erp_extract_date")),
-                    except_message=_safe_str(line.get("except_message")),
-                    rescheduling_date=_safe_date(line.get("rescheduling_date")),
-                    po_feedback=_safe_str(line.get("po_feedback")),
+                    erp_extract_date=_safe_date(line.get("erp_extract_date") or line.get("erp_extract_dt")),
+                    except_message=_safe_str(line.get("except_message") or order.get("mrp_exceptions")),
+                    rescheduling_date=_safe_date(line.get("rescheduling_date") or line.get("mrp_need_by_date")),
+                    po_feedback=_safe_str(line.get("po_feedback") or order.get("po_feedback")),
                     supplier_email=_safe_str(order.get("supplier_email") or line.get("supplier_email")),
                     purchasing_group=_safe_str(line.get("purchasing_group") or order.get("purchasing_group")),
-                    procurement_specialist_id=_safe_str(order.get("procurement_specialist_id")),
+                    procurement_specialist_id=procurement_specialist_id,
                     delegated_user_id=_safe_str(order.get("delegated_user_id")),
                     line_status=_safe_str(line.get("line_status")),
                     updated_quantity=_safe_float(line.get("updated_quantity")),
@@ -635,15 +723,22 @@ def seed_relational_data(force_reset: bool = False) -> None:
 
     with _session_scope() as session:
         if force_reset:
-            session.query(ChatMessage).delete()
-            session.query(ChatSession).delete()
-            session.query(ChatUserMap).delete()
-            session.query(Delegation).delete()
-            session.query(User).delete()
-            session.query(PurchaseOrderLine).delete()
-            session.query(ItemMaster).delete()
-            session.query(LocationMaster).delete()
-            session.query(SupplierMaster).delete()
+            # Use TRUNCATE CASCADE to avoid FK-order sensitivity across environments.
+            for table_name in [
+                "po_line_splits",
+                "po_status_history",
+                "po_documents",
+                "chat_messages",
+                "chat_sessions",
+                "chat_user_map",
+                "delegations",
+                "purchase_orders",
+                "users",
+                "items",
+                "locations",
+                "suppliers",
+            ]:
+                session.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
 
         _seed_suppliers(session, suppliers)
         _seed_locations(session, locations)
@@ -652,11 +747,11 @@ def seed_relational_data(force_reset: bool = False) -> None:
         _seed_items(session, items)
         session.flush()
 
-        _seed_purchase_orders(session, purchase_orders)
-        session.flush()
-
         _seed_users(session, users)
         _seed_supplier_users(session, suppliers)
+        session.flush()
+
+        _seed_purchase_orders(session, purchase_orders)
         session.flush()
 
         _seed_delegations(session, delegations)
@@ -750,19 +845,28 @@ def _serialize_chat_user_map(row: ChatUserMap) -> Dict[str, Any]:
 
 
 def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
-    quantity = line.quantity_ordered or 0
-    unit_cost = float(line.unit_cost or 0.0)
+    quantity = line.updated_quantity if line.updated_quantity is not None else (line.quantity_ordered or 0)
+    unit_cost = float(line.updated_unit_price if line.updated_unit_price is not None else (line.unit_cost or 0.0))
     net_value = round(quantity * unit_cost, 2)
+    line_number = _safe_str(line.poline_no) or ""
     return {
         "id": str(line.po_id),
-        "line_number": _safe_int(line.poline_no) or line.poline_no or "",
+        "line_number": line_number.zfill(8) if line_number.isdigit() else line_number,
+        "po_line_no": line.poline_no,
+        "po_release_no": line.po_release_no,
+        "po_line_revision_no": line.po_line_revision_no,
+        "po_line_issue_date": line.po_line_issue_date.isoformat() if line.po_line_issue_date else None,
         "item_no": line.item_no,
-        "material_code": line.item_no,
+        "material_code": (line.item.material_code if line.item and line.item.material_code else line.item_no),
         "description": line.item_description,
         "quantity": quantity,
+        "quantity_outstanding": line.quantity_outstanding,
         "unit_price": unit_cost,
+        "currency_code": line.currency_code,
         "unit": line.unit_of_measure,
         "shipment_date": line.ots_promise_date.isoformat() if line.ots_promise_date else None,
+        "original_promise_date": line.original_promise_date.isoformat() if line.original_promise_date else None,
+        "latest_promise_date": line.latest_promise_date.isoformat() if line.latest_promise_date else None,
         "required_in_house_date": line.mrp_need_by_date.isoformat() if line.mrp_need_by_date else None,
         "net_value": net_value,
         "item_category_id": line.item_category_id,
@@ -771,6 +875,19 @@ def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
         "payment_term": line.payment_term,
         "supplier_email": line.supplier_email,
         "purchasing_group": line.purchasing_group,
+        "shipment_mode": line.shipment_mode,
+        "po_line_ack_status": line.po_line_ack_status,
+        "po_line_ack_date": line.po_line_ack_date.isoformat() if line.po_line_ack_date else None,
+        "savings_type": line.savings_type,
+        "savings": line.savings,
+        "std_unit_cost": line.std_unit_cost,
+        "erp_extract_date": line.erp_extract_date.isoformat() if line.erp_extract_date else None,
+        "except_message": line.except_message,
+        "rescheduling_date": line.rescheduling_date.isoformat() if line.rescheduling_date else None,
+        "po_feedback": line.po_feedback,
+        "drawing_no": line.drawing_no,
+        "drawing_revision": line.drawing_revision,
+        "seals_ord_no": line.seals_ord_no,
         "line_status": line.line_status or line.po_line_ack_status or "",
         "updated_quantity": line.updated_quantity,
         "updated_unit_price": line.updated_unit_price,
@@ -789,10 +906,30 @@ def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
 def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
     supplier_name = first_line.supplier.supplier_name if first_line.supplier else None
     site_name = first_line.location.location_name if first_line.location else None
+    created_date = (
+        first_line.po_issue_date
+        or first_line.po_line_issue_date
+        or first_line.period_date
+        or first_line.erp_extract_date
+        or first_line.original_promise_date
+        or first_line.latest_promise_date
+        or first_line.ots_promise_date
+        or first_line.mrp_need_by_date
+    )
+    last_modified_date = (
+        first_line.updated_delivery_date
+        or first_line.po_line_ack_date
+        or first_line.rescheduling_date
+        or first_line.latest_promise_date
+        or first_line.ots_promise_date
+        or first_line.erp_extract_date
+        or created_date
+    )
     return {
         "id": first_line.po_header_id,
         "po_number": first_line.po_no,
-        "supplier_id": f"SUP-{first_line.local_supplier_id:03d}",
+        "supplier_msid": first_line.local_supplier_id,
+        "supplier_id": str(first_line.local_supplier_id),
         "supplier_name": supplier_name,
         "supplier_email": first_line.supplier_email,
         "site": site_name,
@@ -804,7 +941,12 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
         "mrp_need_by_date": first_line.mrp_need_by_date.isoformat() if first_line.mrp_need_by_date else None,
         "procurement_specialist_id": first_line.procurement_specialist_id,
         "delegated_user_id": first_line.delegated_user_id,
-        "created_date": first_line.po_issue_date.isoformat() if first_line.po_issue_date else None,
+        "created_date": created_date.isoformat() if created_date else None,
+        "last_modified_by": first_line.procurement_specialist_id or first_line.delegated_user_id or "SYSTEM",
+        "last_modified_date": last_modified_date.isoformat() if last_modified_date else None,
+        "period_date": first_line.period_date.isoformat() if first_line.period_date else None,
+        "purchasing_group": first_line.purchasing_group,
+        "mrp_exceptions": first_line.except_message,
         "line_items": [],
         "status_history": [],
         "workflow_stage": "PO_DETAILS",
@@ -814,7 +956,11 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
 
 def query_relational_purchase_orders() -> List[Dict[str, Any]]:
     with _session_scope() as session:
-        rows = session.query(PurchaseOrderLine).order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.po_id).all()
+        rows = (
+            session.query(PurchaseOrderLine)
+            .order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no)
+            .all()
+        )
         grouped: Dict[str, Dict[str, Any]] = {}
         for row in rows:
             po = grouped.get(row.po_header_id)
@@ -834,7 +980,7 @@ def find_relational_purchase_order(po_id: str) -> Optional[Dict[str, Any]]:
         rows = (
             session.query(PurchaseOrderLine)
             .filter(PurchaseOrderLine.po_header_id == po_id)
-            .order_by(PurchaseOrderLine.po_id)
+            .order_by(PurchaseOrderLine.poline_no)
             .all()
         )
         if not rows:
@@ -920,4 +1066,4 @@ def initialize_database() -> None:
     _hydrate_runtime_from_canonical_if_needed()
     _ensure_database_exists()
     Base.metadata.create_all(bind=engine)
-    seed_relational_data(force_reset=True)
+    seed_relational_data(force_reset=False)
