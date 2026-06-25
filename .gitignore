@@ -26,8 +26,10 @@ share/python-wheels/
 
 # Virtual environments
 venv/
+venv310/
 .env/
 .venv/
+.venv310/
 ENV/
 env/
 myenv/

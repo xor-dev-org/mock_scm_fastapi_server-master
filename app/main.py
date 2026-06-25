@@ -14,7 +14,7 @@ from app.integrations.chat_service.services.websocket_service import WebSocketCo
 
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-from app.routes import auth, po, supplier, admin, delegation, userpref, chat, ai_controller, query_chat
+from app.routes import auth, po, supplier, admin, delegation, userpref, chat, ai_controller
 from app.utils.postgres_db import initialize_database
 
 
@@ -51,7 +51,7 @@ app.include_router(delegation.router)
 app.include_router(userpref.router)
 app.include_router(chat.router)
 app.include_router(ai_controller.router)
-app.include_router(query_chat.router)
+# app.include_router(query_chat.router)
 
 
 @app.get("/health")
