@@ -592,9 +592,9 @@ def enrich_buyer_details(pos):
     for po in pos:
         ps = ps_map.get(po.get("procurement_specialist_id"))
 
-        po["buyer_name"] = ps.get("name", "") if ps else ""
-        po["buyer_email"] = ps.get("email", "") if ps else ""
-        po["buyer_phone"] = ps.get("phone", "") if ps else ""
+        po["buyer_name"] = ps.name if ps and ps.name else ""
+        po["buyer_email"] = ps.email if ps and ps.email else ""
+        po["buyer_phone"] = ps.phone if ps and ps.phone else ""
 
 def _parse_csv_filter(value: Optional[str]) -> List[str]:
     if not value:
