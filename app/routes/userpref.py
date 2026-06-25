@@ -49,6 +49,22 @@ def _find_user_or_404(user_id: str) -> User:
     finally:
         session.close()
 
+def _find_user_record(user_id: str) -> tuple[dict, str, str]:
+    """Search suppliers and users for a matching user id.
+
+    Returns the record, collection name, and record key field.
+    """
+    user = find_one("suppliers", {"id": user_id})
+    if user:
+        return user, "suppliers", "suppliers"
+
+    user = find_one("users", {"id": user_id})
+    if user:
+        return user, "users", "users"
+
+    raise HTTPException(status_code=404, detail="User not found")
+
+
 
 @router.get("/pinned-rows")
 def get_pinned_rows(

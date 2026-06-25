@@ -1,21 +1,21 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
+# from fastapi import APIRouter
+# from pydantic import BaseModel
 
-from app.services.query_chat_service import ask_question
+# from app.services.query_chat_service import ask_question
 
-router = APIRouter(
-    prefix="/query-chat",
-    tags=["Query Chat"]
-)
-
-
-class ChatRequest(BaseModel):
-    question: str
+# router = APIRouter(
+#     prefix="/query-chat",
+#     tags=["Query Chat"]
+# )
 
 
-@router.post("/ask")
-def ask(request: ChatRequest):
+# class ChatRequest(BaseModel):
+#     question: str
 
-    return ask_question(
-        request.question
-    )
+
+# @router.post("/ask")
+# def ask(request: ChatRequest):
+
+#     return ask_question(
+#         request.question
+#     )

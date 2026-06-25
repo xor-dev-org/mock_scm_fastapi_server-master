@@ -16,10 +16,8 @@ class ChatService:
         return cls._instance
 
     def _initialize(self) -> None:
-        # connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING")
-        # endpoint_url  = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
-        connection_string  = "endpoint=https://fls-cp.unitedstates.communication.azure.com/;accesskey=AGmIgw2YdBnommf9Gdc67xHUvXpLOrY973ByXYkYrYieaPI3DX4hJQQJ99CFACULyCp67hJUAAAAAZCSpQM9"
-        endpoint_url = "https://fls-cp.unitedstates.communication.azure.com/"
+        connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING")
+        endpoint_url  = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
 
         if not connection_string:
             raise ValueError("AZURE_COMMUNICATION_CONNECTION_STRING environment variable is required")
