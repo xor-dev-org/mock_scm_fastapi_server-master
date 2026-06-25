@@ -75,6 +75,10 @@ htmlcov/
 *.swo
 *~
 
+# # Excel source files
+# *.xlsx
+# *.xls
+
 # Node modules (if frontend exists)
 node_modules/
 
@@ -87,3 +91,5 @@ coverage.xml
 # Logs
 logs/
 *.log
+
+*/uploads/

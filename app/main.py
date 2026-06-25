@@ -1,18 +1,21 @@
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi import WebSocket, WebSocketDisconnect
 from app.integrations.chat_service.controllers import (
     chat_controller as integration_chat_controller,
     procurement_specialist_controller,
-    supplier_controller as integration_supplier_controller,
+    supplier_controller as integration_supplier_controller, 
 )
-from app.integrations.chat_service.database.db import client
+# from app.integrations.chat_service.database.db import client
 from app.integrations.chat_service.services.websocket_service import WebSocketConnectionManager
 
 from fastapi.middleware.cors import CORSMiddleware
 import logging
-from app.routes import auth, po, supplier, admin, delegation, userpref, chat
-from app.utils.mongo_db import initialize_database
+from app.routes import auth, po, supplier, admin, delegation, userpref, chat, ai_controller, query_chat
+from app.utils.postgres_db import initialize_database
 
 
 app = FastAPI(
@@ -47,6 +50,8 @@ app.include_router(admin.router)
 app.include_router(delegation.router)
 app.include_router(userpref.router)
 app.include_router(chat.router)
+app.include_router(ai_controller.router)
+app.include_router(query_chat.router)
 
 
 @app.get("/health")

@@ -131,6 +131,62 @@
     "pinned_mrp_exception_line_items": []
   },
   {
+    "id": "PS-006",
+    "name": "Procurement Specialist 6",
+    "phone": "595-585-0055",
+    "email": "ps6@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
+    "id": "PS-007",
+    "name": "Procurement Specialist 7",
+    "phone": "555-987-6543",
+    "email": "ps7@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
+    "id": "PS-008",
+    "name": "Procurement Specialist 8",
+    "phone": "245-665-7775",
+    "email": "ps8@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
+    "id": "PS-009",
+    "name": "Procurement Specialist 9",
+    "phone": "555-000-1111",
+    "email": "ps9@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
+    "id": "PS-010",
+    "name": "Procurement Specialist 10",
+    "phone": "555-222-3333",
+    "email": "ps10@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
+    "id": "PS-011",
+    "name": "Procurement Specialist 11",
+    "phone": "555-444-5555",
+    "email": "ps11@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
+    "id": "PS-012",
+    "name": "Procurement Specialist 12",
+    "phone": "555-666-7777",
+    "email": "ps12@mockscm.com",
+    "role": "PROCUREMENT_SPECIALIST",
+    "pinned_rows": []
+  },
+  {
     "id": "ADMIN-001",
     "name": "Admin User",
     "phone": "555-000-0000",

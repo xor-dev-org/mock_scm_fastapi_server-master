@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Tuple
+from typing import List
 
 from app.utils.mongo_db import find_one, update_one
+from app.db.models import User
+from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/user-pref", tags=["User Preference"])
 
@@ -32,20 +34,20 @@ def _get_pin_field(pin_type: str) -> str:
     return field_name
 
 
-def _find_user_record(user_id: str) -> Tuple[dict, str, str]:
-    """Search suppliers and users for a matching user id.
+class UpdateLinePinnedRowsRequest(BaseModel):
+    user_id: str
+    line_pinned_rows: List[str]
 
-    Returns the record, collection name, and record key field.
-    """
-    user = find_one("suppliers", {"id": user_id})
-    if user:
-        return user, "suppliers", "suppliers"
 
-    user = find_one("users", {"id": user_id})
-    if user:
-        return user, "users", "users"
-
-    raise HTTPException(status_code=404, detail="User not found")
+def _find_user_or_404(user_id: str) -> User:
+    session = SessionLocal()
+    try:
+        user = session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    finally:
+        session.close()
 
 
 @router.get("/pinned-rows")
@@ -87,4 +89,33 @@ def update_pinned_rows(req: UpdatePinnedRowsRequest):
         "user_id": req.user_id,
         "pin_type": req.pin_type,
         "pinned_rows": req.pinned_rows,
+    }
+
+
+@router.get("/line-pinned-rows")
+def get_line_pinned_rows(user_id: str):
+    user = _find_user_or_404(user_id)
+    return {
+        "user_id": user_id,
+        "line_pinned_rows": list(user.line_pinned_rows or []),
+    }
+
+
+@router.put("/line-pinned-rows")
+def update_line_pinned_rows(req: UpdateLinePinnedRowsRequest):
+    session = SessionLocal()
+    try:
+        user = session.get(User, req.user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.line_pinned_rows = list(req.line_pinned_rows)
+        session.add(user)
+        session.commit()
+    finally:
+        session.close()
+
+    return {
+        "message": "Line pinned rows updated successfully",
+        "user_id": req.user_id,
+        "line_pinned_rows": req.line_pinned_rows,
     }

@@ -16,14 +16,19 @@ class ChatService:
         return cls._instance
 
     def _initialize(self) -> None:
-        connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING")
-        endpoint_url  = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
+        # connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING")
+        # endpoint_url  = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
+        connection_string  = "endpoint=https://fls-cp.unitedstates.communication.azure.com/;accesskey=AGmIgw2YdBnommf9Gdc67xHUvXpLOrY973ByXYkYrYieaPI3DX4hJQQJ99CFACULyCp67hJUAAAAAZCSpQM9"
+        endpoint_url = "https://fls-cp.unitedstates.communication.azure.com/"
 
         if not connection_string:
             raise ValueError("AZURE_COMMUNICATION_CONNECTION_STRING environment variable is required")
         
         if not endpoint_url:
             raise ValueError("AZURE_COMMUNICATION_ENDPOINT environment variable is required")
+
+        print(f"Using Azure Communication Services connection string: {connection_string}")
+        print(f"Using Azure Communication Services endpoint URL: {endpoint_url}")
 
         self.endpoint_url = endpoint_url
         self._identity_client = CommunicationIdentityClient.from_connection_string(connection_string)
@@ -51,8 +56,10 @@ class ChatService:
         starter_acs_user_id: str,
         topic: Optional[str] = None,
         starter_display_name: Optional[str] = None,
+        participant_acs_ids: Optional[List[str]] = None,
+        participant_display_names: Optional[dict[str, str]] = None,
     ) -> Tuple[ChatThreadClient, str]:
-        """Start a chat session and return the new thread client."""
+        """Start a chat thread and return the thread client plus the starter token."""
         starter_user = CommunicationUserIdentifier(starter_acs_user_id)
         starter = ChatParticipant(
             identifier=starter_user,
@@ -63,7 +70,19 @@ class ChatService:
         token_credential = CommunicationTokenCredential(token)
         chat_client = ChatClient(endpoint=self.endpoint_url, credential=token_credential)
 
-        thread_result = chat_client.create_chat_thread(topic, thread_participants=[starter])
+        thread_participants = [starter]
+        for acs_user_id in participant_acs_ids or []:
+            if acs_user_id == starter_acs_user_id:
+                continue
+
+            thread_participants.append(
+                ChatParticipant(
+                    identifier=CommunicationUserIdentifier(acs_user_id),
+                    display_name=(participant_display_names or {}).get(acs_user_id, acs_user_id),
+                )
+            )
+
+        thread_result = chat_client.create_chat_thread(topic, thread_participants=thread_participants)
         return chat_client.get_chat_thread_client(thread_result.chat_thread.id), token
 
     def add_participant(self, thread_id: str, token: str, acs_user_id: str, display_name: Optional[str] = None):
