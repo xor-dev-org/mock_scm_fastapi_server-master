@@ -18,6 +18,8 @@ class ChatService:
     def _initialize(self) -> None:
         connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING")
         endpoint_url  = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
+        
+        self._identity_client = None
 
         if not connection_string:
             raise ValueError("AZURE_COMMUNICATION_CONNECTION_STRING environment variable is required")

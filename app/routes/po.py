@@ -121,6 +121,7 @@ def _current_user(authorization: Optional[str]) -> Dict:
         "name": user.name,
         "email": user.email,
         "role": user.role,
+        "supplier_number": user.supplier_number,
         "supplier_msid": user.supplier_msid,
     }
 
@@ -133,17 +134,31 @@ def _can_access_po(po: Dict, current_user: Dict) -> bool:
         return True
 
     if role == "SUPPLIER":
-        user_supplier_msid = current_user.get("supplier_msid")
-        po_supplier_msid = po.get("supplier_msid")
-        if user_supplier_msid is None or po_supplier_msid is None:
-            return False
-        return str(user_supplier_msid) == str(po_supplier_msid)
+        user_supplier_keys = {
+            str(value).strip().lower()
+            for value in [
+                current_user.get("supplier_msid"),
+                current_user.get("supplier_number"),
+                current_user.get("id"),
+                current_user.get("email"),
+            ]
+            if value is not None and str(value).strip()
+        }
+
+        po_supplier_keys = {
+            str(value).strip().lower()
+            for value in [
+                po.get("supplier_msid"),
+                po.get("supplier_id"),
+                po.get("supplier_email"),
+            ]
+            if value is not None and str(value).strip()
+        }
+
+        return bool(user_supplier_keys & po_supplier_keys)
 
     if role == "PROCUREMENT_SPECIALIST":
-        return user_id in {
-            po.get("procurement_specialist_id"),
-            po.get("delegated_user_id"),
-        }
+        return True
 
     return False
 
@@ -545,6 +560,20 @@ def _insert_history_row(po_id: str, history_record: Dict) -> None:
         session.close()
 
 
+def _append_and_persist_history(po_id: str, po: Dict, history_record: Dict) -> Dict:
+    updated_po = _normalize_po(po)
+    updated_po.setdefault("status_history", []).append(history_record)
+    updated_po["last_modified_by"] = history_record.get("actor_id") or updated_po.get("last_modified_by")
+    updated_po["last_modified_date"] = history_record.get("timestamp") or _now_iso()
+
+    persisted = replace_relational_purchase_order(po_id, updated_po)
+    if not persisted:
+        raise HTTPException(status_code=500, detail="Failed to persist PO history state")
+
+    _insert_history_row(po_id, history_record)
+    return persisted
+
+
 def _list_history_for_po(po_id: str) -> List[Dict]:
     session = SessionLocal()
     try:
@@ -606,6 +635,62 @@ def _parse_csv_filter(value: Optional[str]) -> List[str]:
         if item.strip()
     ]
 
+
+def _flatten_po_line_items(pos: List[Dict], tab_mode: Optional[str]) -> List[Dict]:
+    rows: List[Dict] = []
+
+    for po in pos:
+        if tab_mode == "ready_to_review" and po.get("status") != "UNAPPROVED":
+            continue
+
+        for item in po.get("line_items", []):
+            except_message = item.get("except_message")
+            if tab_mode == "mrp_exception" and not except_message:
+                continue
+
+            line_id = item.get("id")
+            row_id = f"{po.get('id')}-{line_id}" if line_id else f"{po.get('id')}-{item.get('line_number')}"
+
+            rows.append(
+                {
+                    "id": row_id,
+                    "po_id": po.get("id"),
+                    "po_number": po.get("po_number"),
+                    "supplier_name": po.get("supplier_name"),
+                    "supplier_id": po.get("supplier_id"),
+                    "supplier_email": po.get("supplier_email"),
+                    "site": po.get("site"),
+                    "status": po.get("status"),
+                    "source_system": po.get("source_system"),
+                    "revision_changes": po.get("revision_changes"),
+                    "mrp_exceptions": po.get("mrp_exceptions"),
+                    "delivery_date": po.get("delivery_date"),
+                    "currency": po.get("currency"),
+                    "line_id": line_id,
+                    **item,
+                }
+            )
+
+    return rows
+
+
+def _line_row_matches_search(row: Dict, search_lower: str) -> bool:
+    return any(
+        search_lower in str(value).lower()
+        for value in [
+            row.get("po_number", ""),
+            row.get("supplier_name", ""),
+            row.get("supplier_email", ""),
+            row.get("supplier_id", ""),
+            row.get("site", ""),
+            row.get("status", ""),
+            row.get("source_system", ""),
+            row.get("material_code", ""),
+            row.get("description", ""),
+            row.get("except_message", ""),
+        ]
+    )
+
 @router.get("")
 def get_pos(
     page: int = 1,
@@ -631,6 +716,8 @@ def get_pos(
     pinned_po_list: List[str] = None,
     authorization: Optional[str] = Header(default=None),
     revision_changes: int = None,
+    tab_mode: Optional[str] = Query(default=None),
+    include_line_items_only: bool = Query(default=False),
 ):
     current_user = _current_user(authorization)
     pos = _load_pos()
@@ -780,6 +867,31 @@ def get_pos(
 
     if sort_by is not None:
         pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
+
+    if include_line_items_only:
+        allowed_tab_modes = {"ready_to_review", "mrp_exception"}
+        normalized_tab_mode = tab_mode if tab_mode in allowed_tab_modes else None
+
+        line_rows = _flatten_po_line_items(pos, normalized_tab_mode)
+
+        if search:
+            search_lower = search.lower().strip()
+            line_rows = [row for row in line_rows if _line_row_matches_search(row, search_lower)]
+
+        if sort_by is not None:
+            line_rows = sorted(
+                line_rows,
+                key=lambda x: x.get(sort_by, ""),
+                reverse=sort_order == "desc",
+            )
+
+        total_rows = len(line_rows)
+        return {
+            "page": 1,
+            "page_size": total_rows,
+            "total": total_rows,
+            "data": line_rows,
+        }
 
     total = len(pos)
 
@@ -1027,6 +1139,8 @@ def perform_po_action(
     if not resolved_line_ids:
         raise HTTPException(status_code=400, detail="line_item_id is required")
 
+    existing_history_count = len(po.get("status_history") or [])
+
     updated_po = po
     for resolved_line_id in resolved_line_ids:
         updated_po = _apply_action_to_po(
@@ -1045,6 +1159,11 @@ def perform_po_action(
             concession_reason=concession_reason or None,
             concession_description=concession_description or None,
         )
+
+    # Persist status-history deltas based on the action-updated payload.
+    # The relational PO serializer does not round-trip top-level status_history.
+    updated_history = updated_po.get("status_history") or []
+    new_history_rows = updated_history[existing_history_count:]
 
     persisted = replace_relational_purchase_order(po_id, updated_po)
     if not persisted:
@@ -1065,9 +1184,8 @@ def perform_po_action(
         current_user.get("id"),
     )
 
-    latest_history = (persisted.get("status_history") or [])[-1] if persisted.get("status_history") else None
-    if latest_history:
-        _insert_history_row(po_id, latest_history)
+    for history_row in new_history_rows:
+        _insert_history_row(po_id, history_row)
 
     return {
         **persisted,
@@ -1163,6 +1281,10 @@ def perform_po_document_action(
 
     _assert_po_access(po, current_user)
 
+    role = current_user.get("role")
+    if role not in {"PROCUREMENT_SPECIALIST", "ADMIN"}:
+        raise HTTPException(status_code=403, detail="Only PS users can review documents")
+
     action = (action_payload.get("action") or "").strip().upper()
     notes = (action_payload.get("notes") or "").strip()
     if action not in DOCUMENT_ACTION_STATUS:
@@ -1171,14 +1293,30 @@ def perform_po_document_action(
     session = SessionLocal()
     try:
         document = _get_document_or_404(session, po_id, document_id)
+        previous_status = document.status
         document.status = DOCUMENT_ACTION_STATUS[action]
         document.ps_comments = notes or document.ps_comments
         session.add(document)
         session.commit()
         session.refresh(document)
-        return {"document": _serialize_document_row(document)}
+        serialized_document = _serialize_document_row(document)
     finally:
         session.close()
+
+    history_record = {
+        "action": f"DOCUMENT_{action}",
+        "actor_id": current_user.get("id"),
+        "actor_role": role,
+        "line_item_id": serialized_document.get("line_item_id"),
+        "previous_status": previous_status,
+        "new_status": serialized_document.get("status"),
+        "notes": notes,
+        "timestamp": _now_iso(),
+        "document_id": document_id,
+    }
+    _append_and_persist_history(po_id, po, history_record)
+
+    return {"document": serialized_document}
 
 
 @router.post("/{po_id}/documents/{document_id}/replace")
@@ -1199,6 +1337,7 @@ async def replace_po_document(
     session = SessionLocal()
     try:
         document = _get_document_or_404(session, po_id, document_id)
+        previous_status = document.status
         UPLOAD_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
         extension = Path(file.filename or document.file_name or "document").suffix
         replacement_path = UPLOAD_STORAGE_PATH / f"{document.id}{extension}"
@@ -1216,9 +1355,24 @@ async def replace_po_document(
         session.add(document)
         session.commit()
         session.refresh(document)
-        return {"document": _serialize_document_row(document)}
+        serialized_document = _serialize_document_row(document)
     finally:
         session.close()
+
+    history_record = {
+        "action": "DOCUMENT_REPLACED",
+        "actor_id": current_user.get("id"),
+        "actor_role": current_user.get("role"),
+        "line_item_id": serialized_document.get("line_item_id"),
+        "previous_status": previous_status,
+        "new_status": serialized_document.get("status"),
+        "notes": comments or "",
+        "timestamp": _now_iso(),
+        "document_id": document_id,
+    }
+    _append_and_persist_history(po_id, po, history_record)
+
+    return {"document": serialized_document}
 
 
 @router.post("/{po_id}/documents/upload")
@@ -1283,9 +1437,18 @@ async def upload_po_document(
         }
     )
 
-    persisted_po = replace_relational_purchase_order(po_id, po)
-    if not persisted_po:
-        raise HTTPException(status_code=500, detail="Failed to persist PO document state")
+    history_record = {
+        "action": "DOCUMENT_UPLOADED",
+        "actor_id": current_user.get("id"),
+        "actor_role": current_user.get("role"),
+        "line_item_id": str(line_item.get("id")),
+        "previous_status": None,
+        "new_status": "PENDING",
+        "notes": comments or "",
+        "timestamp": _now_iso(),
+        "document_id": document_id,
+    }
+    _append_and_persist_history(po_id, po, history_record)
 
     return {
         "message": "Document uploaded successfully",
