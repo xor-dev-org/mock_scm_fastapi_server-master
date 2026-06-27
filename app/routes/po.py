@@ -15,7 +15,7 @@ from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadF
 from fastapi.responses import FileResponse
 from jose import JWTError
 
-from app.db.models import PODocument, POStatusHistory, User
+from app.db.models import PODocument, POStatusHistory, User, PurchaseOrderLine, LocationMaster
 from app.db.session import SessionLocal
 from app.utils.auth import decode_token, extract_bearer_token
 from app.utils.postgres_db import (
@@ -954,21 +954,52 @@ def get_pinned_pos(
 def get_available_sites(authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
 
-    pos = query_items("purchase_orders")
-    pos = [_normalize_po(po) for po in pos]
-    pos = [po for po in pos if _can_access_po(po, current_user)]
+    session = SessionLocal()
+    try:
+        query = (
+            session.query(LocationMaster.location_name)
+            .join(
+                PurchaseOrderLine,
+                PurchaseOrderLine.location_id == LocationMaster.location_id,
+            )
+            .filter(LocationMaster.location_name.isnot(None))
+        )
 
-    sites = sorted(
-        {
-            po.get("site")
-            for po in pos
-            if po.get("site")
-        }
-    )
+        if current_user.get("role") == "SUPPLIER":
+            supplier_keys = [
+                current_user.get("supplier_msid"),
+                current_user.get("supplier_number"),
+            ]
 
-    return {
-        "sites": sites
-    }
+            supplier_ids = []
+            for value in supplier_keys:
+                if value is None:
+                    continue
+                try:
+                    supplier_ids.append(int(value))
+                except (TypeError, ValueError):
+                    continue
+
+            if supplier_ids:
+                query = query.filter(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
+            else:
+                return {"sites": []}
+
+        rows = (
+            query.distinct()
+            .order_by(LocationMaster.location_name.asc())
+            .all()
+        )
+
+        sites = [
+            row.location_name
+            for row in rows
+            if row.location_name
+        ]
+
+        return {"sites": sites}
+    finally:
+        session.close()
 
 @router.get("/{po_id}")
 def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
