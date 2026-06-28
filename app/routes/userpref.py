@@ -12,6 +12,8 @@ PIN_FIELD_MAP = {
     "po": "pinned_rows",
     "po_to_review": "pinned_po_to_review_line_items",
     "mrp_exception": "pinned_mrp_exception_line_items",
+    "po_details_lines": "pinned_po_details_lines",
+    "po_details_documents": "pinned_po_details_documents",
 }
 
 
@@ -54,6 +56,10 @@ def _get_pin_metadata_key(pin_type: str) -> str | None:
         return "pinned_po_to_review_line_items"
     if pin_type == "mrp_exception":
         return "pinned_mrp_exception_line_items"
+    if pin_type == "po_details_lines":
+        return "pinned_po_details_lines"
+    if pin_type == "po_details_documents":
+        return "pinned_po_details_documents"
     return None
 
 
@@ -84,7 +90,7 @@ def _set_pinned_rows_for_user(user: User, pin_type: str, pinned_rows: List[str])
 @router.get("/pinned-rows")
 def get_pinned_rows(
     user_id: str,
-    pin_type: str = Query("po", description="Pin type: po, po_to_review, mrp_exception"),
+    pin_type: str = Query("po", description="Pin type: po, po_to_review, mrp_exception, po_details_lines, po_details_documents"),
 ):
     _get_pin_field(pin_type)
     user = _find_user_or_404(user_id)

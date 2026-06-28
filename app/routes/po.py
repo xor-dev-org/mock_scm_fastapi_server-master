@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import List
 
 from app.utils.mongo_db import find_one, query_items, insert_one, replace_one, update_one
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import mimetypes
 import os
@@ -15,9 +15,10 @@ from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadF
 from fastapi.responses import FileResponse
 from jose import JWTError
 
-from app.db.models import PODocument, POStatusHistory, User
+from app.db.models import PODocument, POStatusHistory, User, PurchaseOrderLine, LocationMaster
 from app.db.session import SessionLocal
 from app.utils.auth import decode_token, extract_bearer_token
+from app.utils.json_db import read_json
 from app.utils.postgres_db import (
     create_relational_purchase_order,
     find_relational_purchase_order,
@@ -81,6 +82,40 @@ ROLE_ALLOWED_ACTIONS = {
 }
 
 UPLOAD_STORAGE_PATH = Path(os.getenv("UPLOAD_STORAGE_PATH", "data/uploads")).resolve()
+DEFAULT_DOCUMENT_TAGS = [
+    "LINE_ITEM",
+    "CONCESSION",
+    "SPECIFICATION",
+    "QUALITY",
+    "DELIVERY",
+    "COMMERCIAL",
+]
+
+
+def _load_document_tags() -> List[str]:
+    try:
+        payload = read_json("document_tags.json")
+    except FileNotFoundError:
+        return DEFAULT_DOCUMENT_TAGS
+
+    if isinstance(payload, dict):
+        tags = payload.get("tags", [])
+    else:
+        tags = payload
+
+    if not isinstance(tags, list):
+        return DEFAULT_DOCUMENT_TAGS
+
+    normalized = [str(tag).strip().upper() for tag in tags if str(tag).strip()]
+    return normalized or DEFAULT_DOCUMENT_TAGS
+
+
+def _normalize_document_tag(tag: Optional[str]) -> str:
+    normalized = (tag or "LINE_ITEM").strip().upper()
+    allowed_tags = set(_load_document_tags())
+    if normalized not in allowed_tags:
+        raise HTTPException(status_code=400, detail=f"Unsupported document_tag_to '{normalized}'")
+    return normalized
 
 
 def _now_iso() -> str:
@@ -636,17 +671,58 @@ def _parse_csv_filter(value: Optional[str]) -> List[str]:
     ]
 
 
+def _is_pending_status(value: Optional[str]) -> bool:
+    status = str(value or "").upper()
+    return (
+        "PENDING" in status
+        or "UNACK" in status
+        or "NEED" in status
+        or "REVIEW" in status
+    )
+
+
 def _flatten_po_line_items(pos: List[Dict], tab_mode: Optional[str]) -> List[Dict]:
     rows: List[Dict] = []
+    today = datetime.utcnow().date()
+    threshold = today + timedelta(days=30)
 
     for po in pos:
-        if tab_mode == "ready_to_review" and po.get("status") != "UNAPPROVED":
-            continue
-
         for item in po.get("line_items", []):
             except_message = item.get("except_message")
-            if tab_mode == "mrp_exception" and not except_message:
+            if tab_mode == "mrp_exception" and not (
+                except_message or item.get("mrp_action_required")
+            ):
                 continue
+
+            if tab_mode == "ready_to_review":
+                ack_status = str(item.get("po_line_ack_status") or "").upper()
+                line_status = str(item.get("line_status") or "").upper()
+                recommendation = str(item.get("recommendation") or "").upper()
+                if not (
+                    _is_pending_status(ack_status)
+                    or _is_pending_status(line_status)
+                    or _is_pending_status(recommendation)
+                ):
+                    continue
+
+            if tab_mode == "exceptions_alerts":
+                need_by_value = item.get("required_in_house_date") or po.get("delivery_date")
+                if not need_by_value:
+                    continue
+                try:
+                    need_by_date = datetime.strptime(str(need_by_value), "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+
+                if not (need_by_date < today or need_by_date <= threshold):
+                    continue
+
+            if tab_mode == "action_required":
+                if not (
+                    _is_pending_status(item.get("po_line_ack_status"))
+                    or _is_pending_status(item.get("line_status"))
+                ):
+                    continue
 
             line_id = item.get("id")
             row_id = f"{po.get('id')}-{line_id}" if line_id else f"{po.get('id')}-{item.get('line_number')}"
@@ -688,6 +764,10 @@ def _line_row_matches_search(row: Dict, search_lower: str) -> bool:
             row.get("material_code", ""),
             row.get("description", ""),
             row.get("except_message", ""),
+            row.get("recommendation", ""),
+            row.get("concession", ""),
+            row.get("line_status", ""),
+            row.get("po_line_ack_status", ""),
         ]
     )
 
@@ -869,7 +949,7 @@ def get_pos(
         pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
 
     if include_line_items_only:
-        allowed_tab_modes = {"ready_to_review", "mrp_exception"}
+        allowed_tab_modes = {"ready_to_review", "mrp_exception", "exceptions_alerts", "action_required"}
         normalized_tab_mode = tab_mode if tab_mode in allowed_tab_modes else None
 
         line_rows = _flatten_po_line_items(pos, normalized_tab_mode)
@@ -954,21 +1034,52 @@ def get_pinned_pos(
 def get_available_sites(authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
 
-    pos = query_items("purchase_orders")
-    pos = [_normalize_po(po) for po in pos]
-    pos = [po for po in pos if _can_access_po(po, current_user)]
+    session = SessionLocal()
+    try:
+        query = (
+            session.query(LocationMaster.location_name)
+            .join(
+                PurchaseOrderLine,
+                PurchaseOrderLine.location_id == LocationMaster.location_id,
+            )
+            .filter(LocationMaster.location_name.isnot(None))
+        )
 
-    sites = sorted(
-        {
-            po.get("site")
-            for po in pos
-            if po.get("site")
-        }
-    )
+        if current_user.get("role") == "SUPPLIER":
+            supplier_keys = [
+                current_user.get("supplier_msid"),
+                current_user.get("supplier_number"),
+            ]
 
-    return {
-        "sites": sites
-    }
+            supplier_ids = []
+            for value in supplier_keys:
+                if value is None:
+                    continue
+                try:
+                    supplier_ids.append(int(value))
+                except (TypeError, ValueError):
+                    continue
+
+            if supplier_ids:
+                query = query.filter(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
+            else:
+                return {"sites": []}
+
+        rows = (
+            query.distinct()
+            .order_by(LocationMaster.location_name.asc())
+            .all()
+        )
+
+        sites = [
+            row.location_name
+            for row in rows
+            if row.location_name
+        ]
+
+        return {"sites": sites}
+    finally:
+        session.close()
 
 @router.get("/{po_id}")
 def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
@@ -1136,6 +1247,12 @@ def perform_po_action(
     )
 
     resolved_line_ids = line_item_ids or ([line_item_id] if line_item_id else [])
+    if not resolved_line_ids and action == "ACCEPT":
+        resolved_line_ids = [
+            str(item.get("id") or str(item.get("line_number", "")).zfill(5)).strip()
+            for item in po.get("line_items", [])
+            if str(item.get("id") or item.get("line_number") or "").strip()
+        ]
     if not resolved_line_ids:
         raise HTTPException(status_code=400, detail="line_item_id is required")
 
@@ -1325,6 +1442,7 @@ async def replace_po_document(
     document_id: str,
     file: UploadFile = File(...),
     comments: str = Form(""),
+    document_tag_to: str = Form("LINE_ITEM"),
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
@@ -1333,6 +1451,7 @@ async def replace_po_document(
         raise HTTPException(status_code=404, detail="PO not found")
 
     _assert_po_access(po, current_user)
+    normalized_tag = _normalize_document_tag(document_tag_to)
 
     session = SessionLocal()
     try:
@@ -1351,6 +1470,7 @@ async def replace_po_document(
         document.status = "PENDING"
         document.version = (document.version or 1) + 1
         document.ps_comments = comments or document.ps_comments
+        document.document_tag_to = normalized_tag
         document.uploaded_by = current_user.get("id")
         session.add(document)
         session.commit()
@@ -1369,6 +1489,7 @@ async def replace_po_document(
         "notes": comments or "",
         "timestamp": _now_iso(),
         "document_id": document_id,
+        "document_tag_to": normalized_tag,
     }
     _append_and_persist_history(po_id, po, history_record)
 
@@ -1390,6 +1511,7 @@ async def upload_po_document(
         raise HTTPException(status_code=404, detail="PO not found")
 
     _assert_po_access(po, current_user)
+    normalized_tag = _normalize_document_tag(document_tag_to)
     line_item = _find_line_item_or_404(po, line_item_id)
 
     UPLOAD_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
@@ -1412,7 +1534,7 @@ async def upload_po_document(
             file_size=len(content),
             file_path=str(output_path),
             status="PENDING",
-            document_tag_to=document_tag_to,
+            document_tag_to=normalized_tag,
             version=1,
             ps_comments=comments or None,
             uploaded_by=current_user.get("id"),
@@ -1434,6 +1556,7 @@ async def upload_po_document(
             "uploaded_by": current_user.get("id"),
             "uploaded_at": _now_iso(),
             "comments": comments,
+            "document_tag_to": normalized_tag,
         }
     )
 
@@ -1447,6 +1570,7 @@ async def upload_po_document(
         "notes": comments or "",
         "timestamp": _now_iso(),
         "document_id": document_id,
+        "document_tag_to": normalized_tag,
     }
     _append_and_persist_history(po_id, po, history_record)
 
@@ -1466,4 +1590,12 @@ def get_po_dropdown_config(authorization: Optional[str] = Header(default=None)):
         "ui_config": _get_role_ui_config(role),
         "actions": _allowed_actions_for_user(current_user),
         "status_transitions": ACTION_STATUS_TRANSITIONS,
+    }
+
+
+@router.get("/config/document-tags")
+def get_po_document_tags(authorization: Optional[str] = Header(default=None)):
+    _current_user(authorization)
+    return {
+        "tags": _load_document_tags(),
     }
