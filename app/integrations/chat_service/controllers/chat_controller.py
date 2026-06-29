@@ -1,8 +1,10 @@
 import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, EmailStr, Field
 
 from app.integrations.chat_service.database.db import chat_collection
 from app.integrations.chat_service.dto.procurement_specialist import AddChatParticipant, StartChatThread
@@ -11,12 +13,50 @@ from app.integrations.chat_service.services.chat_service import ChatService
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+class MarkChatReadRequest(BaseModel):
+    email: EmailStr
+    thread_id: str = Field(min_length=1)
+    last_read_message_id: str = Field(min_length=1)
+
+
 def _extract_acs_user_id(user) -> str:
     if hasattr(user, "raw_id") and user.raw_id:
-      return user.raw_id
+        return user.raw_id
     if hasattr(user, "id") and user.id:
-      return user.id
+        return user.id
     return str(user)
+
+
+def _build_bootstrap_item(chat: dict, current_email: str, chat_service: ChatService) -> Optional[dict]:
+    participant_details = chat.get("participant_details", {})
+    current_details = participant_details.get(current_email)
+
+    if not current_details or not current_details.get("acs_user_id"):
+        return None
+
+    participants = chat.get("participants", []) or []
+    counterpart_email = next((participant for participant in participants if participant != current_email), None)
+    counterpart_details = participant_details.get(counterpart_email or "", {})
+
+    return {
+        "threadId": chat.get("thread_id"),
+        "token": chat_service.create_token_from_user_id(current_details["acs_user_id"]),
+        "acsUserId": current_details["acs_user_id"],
+        "endpoint": chat_service.endpoint_url,
+        "poNumber": chat.get("po_number"),
+        "participants": participants,
+        "lastReadMessageId": (chat.get("last_read_message_ids") or {}).get(current_email),
+        "currentParticipant": {
+            "email": current_email,
+            "name": current_details.get("name"),
+            "acsUserId": current_details.get("acs_user_id"),
+        },
+        "counterpart": {
+            "email": counterpart_email,
+            "name": counterpart_details.get("name"),
+            "acsUserId": counterpart_details.get("acs_user_id"),
+        },
+    }
 
 
 @router.post("/", status_code=201, description="Start a chat thread")
@@ -41,16 +81,23 @@ async def start_chat_thread(payload: StartChatThread):
                 detail="Chat exists but the current participant is not linked to it",
             )
 
+        acs_user_id = requester_details["acs_user_id"]
+
+        token = chat_service.create_token_from_user_id(
+            acs_user_id
+        )
+
         return {
             "status": "Success",
             "created": False,
             "data": {
                 "threadId": existing_chat["thread_id"],
-                "token": requester_details["token"],
-                "acsUserId": requester_details["acs_user_id"],
+                "token": token,
+                "acsUserId": acs_user_id,
                 "endpoint": chat_service.endpoint_url,
                 "poNumber": existing_chat.get("po_number"),
                 "participants": existing_chat.get("participants", []),
+                "lastReadMessageId": (existing_chat.get("last_read_message_ids") or {}).get(payload.from_email),
             },
         }
 
@@ -80,16 +127,18 @@ async def start_chat_thread(payload: StartChatThread):
         "thread_id": chat_thread_client.thread_id,
         "po_number": payload.po_number,
         "participants": [payload.from_email, payload.to_email],
+        "last_read_message_ids": {
+            payload.from_email: None,
+            payload.to_email: None,
+        },
         "participant_details": {
             payload.from_email: {
                 "name": payload.from_name,
                 "acs_user_id": starter_acs_user_id,
-                "token": starter_token,
             },
             payload.to_email: {
                 "name": payload.to_name,
                 "acs_user_id": remote_acs_user_id,
-                "token": remote_token,
             },
         },
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -108,7 +157,77 @@ async def start_chat_thread(payload: StartChatThread):
             "endpoint": chat_service.endpoint_url,
             "poNumber": payload.po_number,
             "participants": [payload.from_email, payload.to_email],
+            "lastReadMessageId": None,
         },
+    }
+
+
+@router.post("/read", status_code=200, description="Mark an ACS chat thread as read")
+async def mark_chat_read(payload: MarkChatReadRequest):
+    chats = chat_collection.find_many()
+    chat = next((item for item in chats if item.get("thread_id") == payload.thread_id), None)
+
+    if not chat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat thread not found",
+        )
+
+    participants = chat.get("participants", []) or []
+    if payload.email not in participants:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Current participant is not part of this thread",
+        )
+
+    last_read_message_ids = dict(chat.get("last_read_message_ids") or {})
+    last_read_message_ids[payload.email] = payload.last_read_message_id
+    chat["last_read_message_ids"] = last_read_message_ids
+    chat["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    updated_chat = chat_collection.update_one(
+        {"thread_id": payload.thread_id},
+        {
+            "last_read_message_ids": last_read_message_ids,
+            "updated_at": chat["updated_at"],
+        },
+    )
+
+    if not updated_chat:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to persist read state",
+        )
+
+    return {
+        "status": "Success",
+        "message": "Read state updated",
+        "data": {
+            "threadId": payload.thread_id,
+            "email": payload.email,
+            "lastReadMessageId": payload.last_read_message_id,
+        },
+    }
+
+
+@router.get("/bootstrap", status_code=200, description="List all chat threads for a participant")
+async def bootstrap_chats(email: EmailStr = Query(..., description="Current participant email")):
+    chat_service = ChatService()
+    chats = chat_collection.find_many()
+
+    bootstrap_items = []
+    for chat in chats:
+        participants = chat.get("participants", []) or []
+        if email not in participants:
+            continue
+
+        bootstrap_item = _build_bootstrap_item(chat, str(email), chat_service)
+        if bootstrap_item:
+            bootstrap_items.append(bootstrap_item)
+
+    return {
+        "status": "Success",
+        "data": bootstrap_items,
     }
 
 
@@ -130,7 +249,14 @@ async def add_participant(payload: AddChatParticipant):
     thread_id = existing_chat["thread_id"]
     participant_details = existing_chat.get("participant_details", {})
     starter_email = existing_chat.get("participants", [payload.from_email])[0]
-    token = participant_details.get(payload.from_email, participant_details.get(starter_email, {})).get("token")
+    acs_user_id = participant_details.get(
+        payload.from_email,
+        participant_details.get(starter_email, {})
+    ).get("acs_user_id")
+
+    token = ChatService().create_token_from_user_id(
+        acs_user_id
+    )
 
     if not token:
         raise HTTPException(
