@@ -1159,6 +1159,40 @@ def insert_one(collection_name: str, document: Dict[str, Any]) -> Dict[str, Any]
     logger.info("postgres.insert_one collection=%s id=%s", collection_name, payload.get("id"))
     return payload
 
+
+def update_one(collection_name: str, filter_value: Dict[str, Any], update_value: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    model = _get_model(collection_name)
+    normalized = _normalize_filter(filter_value)
+    payload = _clean_document(update_value) or {}
+    row_id = None
+    row_payload: Dict[str, Any] = {}
+
+    with _session_scope() as session:
+        query = session.query(model)
+        for key, value in normalized.items():
+            if not hasattr(model, key):
+                continue
+            query = query.filter(getattr(model, key) == value)
+
+        row = query.first()
+        if row is None:
+            return None
+
+        row_id = row.id
+        row_payload = dict(row.data or {})
+        row_payload.update(payload)
+        row_payload["id"] = row_id
+        row.data = row_payload
+        _apply_index_fields(row, row_payload)
+
+        if hasattr(row, "updated_at"):
+            row.updated_at = datetime.utcnow()
+
+        session.add(row)
+
+    logger.info("postgres.update_one collection=%s id=%s", collection_name, row_id)
+    return _clean_document(dict(row_payload)) or {}
+
 def query_items(collection_name: str, filter_value: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     model = _get_model(collection_name)
     normalized = _normalize_filter(filter_value)

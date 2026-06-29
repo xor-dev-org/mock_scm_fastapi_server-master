@@ -99,3 +99,12 @@ class ChatService:
         thread_client = chat_client.get_chat_thread_client(thread_id)
         return thread_client.add_participants([participant])
  
+    def create_token_from_user_id(self, acs_user_id: str) -> str:
+        user = CommunicationUserIdentifier(acs_user_id)
+
+        token = self.identity_client.get_token(
+            user,
+            scopes=["chat"]
+        )
+
+        return token.token

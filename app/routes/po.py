@@ -193,7 +193,7 @@ def _can_access_po(po: Dict, current_user: Dict) -> bool:
         return bool(user_supplier_keys & po_supplier_keys)
 
     if role == "PROCUREMENT_SPECIALIST":
-        return True
+        return str(po.get("procurement_specialist_id", "")).strip() == str(user_id).strip()
 
     return False
 
