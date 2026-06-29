@@ -685,6 +685,7 @@ def _flatten_po_line_items(pos: List[Dict], tab_mode: Optional[str]) -> List[Dic
     rows: List[Dict] = []
     today = datetime.utcnow().date()
     threshold = today + timedelta(days=30)
+    use_line_item_status = tab_mode in {"exceptions_alerts", "action_required"}
 
     for po in pos:
         for item in po.get("line_items", []):
@@ -736,7 +737,7 @@ def _flatten_po_line_items(pos: List[Dict], tab_mode: Optional[str]) -> List[Dic
                     "supplier_id": po.get("supplier_id"),
                     "supplier_email": po.get("supplier_email"),
                     "site": po.get("site"),
-                    "status": po.get("status"),
+                    "status": item.get("line_status") if use_line_item_status else po.get("status"),
                     "source_system": po.get("source_system"),
                     "revision_changes": po.get("revision_changes"),
                     "mrp_exceptions": po.get("mrp_exceptions"),
@@ -966,11 +967,14 @@ def get_pos(
             )
 
         total_rows = len(line_rows)
+        start = (page - 1) * page_size
+        end = start + page_size
+
         return {
-            "page": 1,
-            "page_size": total_rows,
+            "page": page,
+            "page_size": page_size,
             "total": total_rows,
-            "data": line_rows,
+            "data": line_rows[start:end],
         }
 
     total = len(pos)
