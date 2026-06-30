@@ -38,10 +38,10 @@ def _get_cors_origins() -> list[str]:
     return ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
 
 
-@app.on_event("startup")
-def startup_event():
-    logging.getLogger(__name__).info("server.startup initializing_database")
-    initialize_database()
+# @app.on_event("startup")
+# def startup_event():
+#     logging.getLogger(__name__).info("server.startup initializing_database")
+#     initialize_database()
 
 # Add CORS middleware
 app.add_middleware(
@@ -86,9 +86,9 @@ app.include_router(integration_supplier_controller.router)
 app.include_router(integration_chat_controller.router)
 
 
-@app.on_event("shutdown")
-def shutdown_event():
-    try:
-        client.close()
-    except Exception:
-        pass
+# @app.on_event("shutdown")
+# def shutdown_event():
+#     try:
+#         client.close()
+#     except Exception:
+#         pass
