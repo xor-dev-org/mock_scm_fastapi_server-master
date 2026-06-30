@@ -6,6 +6,10 @@ import uuid
 from app.db.models import User
 from app.db.session import SessionLocal
 
+from app.utils.postgres_db import (
+    cleanup_and_reseed_data,
+)
+
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 class MsalLoginRequest(BaseModel):
@@ -43,6 +47,14 @@ def _serialize_user(user: User) -> dict:
         }
     )
     return payload
+
+@router.get("/public/reseed")
+def reseed_data():
+    """Clean up relational seed tables and reseed from canonical seed data."""
+    try:
+        return cleanup_and_reseed_data()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to reseed data: {exc}") from exc
 
 @router.post("/msal/login")
 def msal_login(request: MsalLoginRequest):
