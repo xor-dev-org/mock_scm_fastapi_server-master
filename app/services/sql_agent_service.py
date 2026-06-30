@@ -12,7 +12,7 @@ from app.utils.prompts import PROMPT, SYS_PROMPT
 
 logger = logging.getLogger(__name__)
 
-SQL_DATABASE_URI = os.getenv("DATABASE_URI")
+SQL_DATABASE_URI = os.getenv("DATABASE_URL")
 SQL_AGENT_TABLES = ["purchase_orders", "items", "suppliers", "locations"]
 
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
