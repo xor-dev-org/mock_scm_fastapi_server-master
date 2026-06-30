@@ -1,6 +1,5 @@
 # import json
 # from openai import OpenAI
-# from app.utils.mongo_db import get_collection
 # # from app.chatmodel.model import model
 # from huggingface_hub import login
 # import psycopg
@@ -19,8 +18,6 @@
 #     api_key="",
 #     base_url="https://openrouter.ai/api/v1"
 # )
-
-# collection = get_collection("purchase_orders")
 
 # login(token="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")
 
@@ -170,13 +167,6 @@
 
 # def ask_question(question):
 
-#     # mongo_query = generate_query(question)
-
-#     # filter_query = mongo_query.get("filter", {})
-#     # projection = mongo_query.get("projection", {})
-
-#     # projection["embedding"] = 0
-
 #     sql_query = generate_query(question)
 
 #     # sql_query = "SELECT * FROM purchase_orders WHERE po_number = 'PO-11163'"  # Placeholder query for testing
@@ -216,14 +206,13 @@
 #     5. Do NOT generate code.
 #     6. Do NOT generate Python.
 #     7. Do NOT generate SQL.
-#     8. Do NOT generate MongoDB queries.
-#     9. Do NOT generate JSON.
-#     10. Do NOT generate functions, scripts, algorithms, or pseudocode.
-#     11. Do NOT explain how to find the answer.
-#     12. Do NOT describe the steps you would take.
-#     13. Do NOT return markdown code blocks.
-#     14. Do NOT repeat the input data unless necessary to answer the question.
-#     15. If the answer is not available in the provided records, respond exactly with:
+#     8. Do NOT generate JSON.
+#     9. Do NOT generate functions, scripts, algorithms, or pseudocode.
+#     10. Do NOT explain how to find the answer.
+#     11. Do NOT describe the steps you would take.
+#     12. Do NOT return markdown code blocks.
+#     13. Do NOT repeat the input data unless necessary to answer the question.
+#     14. If the answer is not available in the provided records, respond exactly with:
 #         "The requested information is not available in the provided records."
 
 #     Response Requirements:

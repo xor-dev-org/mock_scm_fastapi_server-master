@@ -1,8 +1,5 @@
 from copy import deepcopy
 
-from typing import List
-
-from app.utils.mongo_db import find_one, query_items, insert_one, replace_one, update_one
 from datetime import datetime, timedelta
 import logging
 import mimetypes
@@ -1002,16 +999,6 @@ def get_pinned_pos(
 
     pos = _load_pos()
     pos = [po for po in pos if _can_access_po(po, current_user)]
-    pinned_po_ids = []
-
-    for table in ["users", "suppliers"]:
-        for record in query_items(table):
-            if record.get("id") == user_id:
-                pinned_po_ids.extend(record.get("pinned_rows", []))
-                break
-
-        if pinned_po_ids:
-            break
 
     session = SessionLocal()
     try:
