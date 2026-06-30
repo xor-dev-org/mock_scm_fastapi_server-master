@@ -1,9 +1,12 @@
+import os
 from typing import Dict
 
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
-SECRET_KEY = "mock-secret-key"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("Missing required environment variable: SECRET_KEY")
 ALGORITHM = "HS256"
 
 def create_token(user):
