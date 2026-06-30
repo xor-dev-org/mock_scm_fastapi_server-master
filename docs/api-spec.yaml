@@ -1,49 +1,1728 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: SCM Procurement Mock Server
+  title: SCM Procurement Mock Server API
   version: 1.0.0
+  description: |
+    Detailed API specification for the mock SCM procurement backend.
+
+    Notes:
+    - Most business endpoints expect JWT auth via `Authorization: Bearer <token>`.
+    - `/chat/realtime/ws` and `/ws/{user_id}` are WebSocket endpoints and are documented here as reference.
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Purchase Orders
+  - name: Suppliers
+  - name: Admin
+  - name: Delegations
+  - name: User Preference
+  - name: Chat
+  - name: Integration Chat
+  - name: Integration Procurement Specialists
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PoId:
+      name: po_id
+      in: path
+      required: true
+      schema:
+        type: string
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+    DelegationId:
+      name: delegation_id
+      in: path
+      required: true
+      schema:
+        type: string
+    SupplierId:
+      name: supplier_id
+      in: path
+      required: true
+      schema:
+        type: string
+    DocumentId:
+      name: document_id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Invalid token
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Forbidden
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Not found
+    ValidationError:
+      description: Validation or bad request error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: UP
+
+    UserLite:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, PROCUREMENT_SPECIALIST, SUPPLIER]
+
+    AuthMsalLoginRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    AuthSupplierSignupRequest:
+      type: object
+      required: [supplier_number, name, email, password, address, site]
+      properties:
+        supplier_number:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        address:
+          type: string
+        site:
+          type: string
+
+    AuthSupplierLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+        role:
+          type: string
+          enum: [ADMIN, PROCUREMENT_SPECIALIST, SUPPLIER]
+        user:
+          $ref: '#/components/schemas/UserLite'
+
+    PurchaseOrderLineItem:
+      type: object
+      properties:
+        id:
+          type: string
+        line_number:
+          type: integer
+        material_code:
+          type: string
+        description:
+          type: string
+        quantity:
+          type: number
+        unit_price:
+          type: number
+        unit:
+          type: string
+        per:
+          type: number
+        shipment_date:
+          type: string
+        required_in_house_date:
+          type: string
+        net_value:
+          type: number
+        line_status:
+          type: string
+        documents:
+          type: array
+          items:
+            type: object
+
+    PurchaseOrderHistoryRecord:
+      type: object
+      properties:
+        action:
+          type: string
+        actor_id:
+          type: string
+        actor_role:
+          type: string
+        line_item_id:
+          type: string
+        previous_status:
+          type: string
+        new_status:
+          type: string
+        notes:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        move_in_date:
+          type: string
+          nullable: true
+        move_out_date:
+          type: string
+          nullable: true
+        document_id:
+          type: string
+          nullable: true
+
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: string
+        po_number:
+          type: string
+        status:
+          type: string
+        supplier_id:
+          type: string
+        supplier_name:
+          type: string
+        procurement_specialist_id:
+          type: string
+        delivery_date:
+          type: string
+        total_value:
+          type: number
+        currency:
+          type: string
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLineItem'
+        status_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderHistoryRecord'
+        last_modified_by:
+          type: string
+        last_modified_date:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+
+    PurchaseOrderListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/PurchaseOrder'
+
+    POActionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum:
+            - MOVE_IN
+            - MOVE_OUT
+            - SPLIT
+            - HOLD
+            - REJECT
+            - ACCEPT
+            - NEED_MORE_INFORMATION
+            - MAKE_REVISION
+            - PROPOSE_CHANGE
+            - RAISE_CONCESSION
+            - UPLOAD_DOCUMENT
+            - ACKNOWLEDGE
+        line_item_id:
+          type: string
+          nullable: true
+        line_item_ids:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+        document_id:
+          type: string
+          nullable: true
+        move_in_date:
+          type: string
+          format: date
+          nullable: true
+        move_out_date:
+          type: string
+          format: date
+          nullable: true
+        splits:
+          type: array
+          items:
+            type: object
+            properties:
+              quantity:
+                type: number
+              delivery_date:
+                type: string
+                format: date
+        proposed_quantity:
+          type: number
+          nullable: true
+        proposed_unit_price:
+          type: number
+          nullable: true
+        proposed_delivery_date:
+          type: string
+          format: date
+          nullable: true
+        concession_reason:
+          type: string
+          nullable: true
+        concession_description:
+          type: string
+          nullable: true
+
+    POHistoryResponse:
+      type: object
+      properties:
+        po_id:
+          type: string
+        history:
+          type: array
+          items:
+            type: object
+
+    PODocument:
+      type: object
+      properties:
+        id:
+          type: string
+        po_id:
+          type: string
+        line_item_id:
+          type: string
+        file_name:
+          type: string
+        file_type:
+          type: string
+        file_size:
+          type: integer
+        file_path:
+          type: string
+        status:
+          type: string
+        document_tag_to:
+          type: string
+        version:
+          type: integer
+        ps_comments:
+          type: string
+          nullable: true
+        uploaded_by:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    PODocumentsResponse:
+      type: object
+      properties:
+        po_id:
+          type: string
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/PODocument'
+
+    PODocumentActionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [ACCEPT, REJECT, NEED_MORE_INFORMATION, HOLD, ACKNOWLEDGE]
+        notes:
+          type: string
+
+    DelegationListResponse:
+      allOf:
+        - $ref: '#/components/schemas/PaginationMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+
+    UserPrefPinnedRowsRequest:
+      type: object
+      required: [user_id, pinned_rows]
+      properties:
+        user_id:
+          type: string
+        pinned_rows:
+          type: array
+          items:
+            type: string
+
+    UserPrefLinePinnedRowsRequest:
+      type: object
+      required: [user_id, line_pinned_rows]
+      properties:
+        user_id:
+          type: string
+        line_pinned_rows:
+          type: array
+          items:
+            type: string
+
+    ChatSessionCreateRequest:
+      type: object
+      required: [chat_type]
+      properties:
+        chat_type:
+          type: string
+          enum: [PS_SUPPLIER, PS_PS]
+        participant_ids:
+          type: array
+          items:
+            type: string
+        po_id:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+
+    ChatMessageCreateRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+
+    MarkReadRequest:
+      type: object
+      properties:
+        last_read_message_id:
+          type: string
+          nullable: true
+
+    IntegrationStartChatThreadRequest:
+      type: object
+      required: [fromEmail, fromName, toEmail, toName]
+      properties:
+        fromEmail:
+          type: string
+          format: email
+        fromName:
+          type: string
+        toEmail:
+          type: string
+          format: email
+        toName:
+          type: string
+
+    IntegrationAddChatParticipantRequest:
+      type: object
+      required: [email, name, fromEmail]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        fromEmail:
+          type: string
+          format: email
+
+    IntegrationSupplierCreateRequest:
+      type: object
+      required:
+        - email
+        - name
+        - supplierCode
+        - organizationName
+        - address
+        - city
+        - state
+        - pincode
+        - country
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        supplierCode:
+          type: string
+        organizationName:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pincode:
+          type: string
+        country:
+          type: string
+
+    IntegrationProcurementSpecialistCreateRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
 paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
   /auth/msal/login:
     post:
-      summary: Mock MSAL Login
+      tags: [Auth]
+      summary: Login as Admin or Procurement Specialist
+      operationId: msalLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthMsalLoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /auth/supplier/signup:
     post:
-      summary: Supplier Signup
+      tags: [Auth]
+      summary: Register a new supplier user
+      operationId: supplierSignup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthSupplierSignupRequest'
+      responses:
+        '200':
+          description: Supplier created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
   /auth/supplier/login:
     post:
-      summary: Supplier Login
+      tags: [Auth]
+      summary: Login as supplier
+      operationId: supplierLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthSupplierLoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /suppliers:
+    get:
+      tags: [Suppliers]
+      summary: List suppliers
+      operationId: getSuppliers
+      responses:
+        '200':
+          description: Suppliers list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /suppliers/:
+    post:
+      tags: [Integration Chat]
+      summary: Add supplier (integration chat service)
+      operationId: integrationAddSupplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationSupplierCreateRequest'
+      responses:
+        '201':
+          description: Supplier added
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /procurement-specialists/:
+    post:
+      tags: [Integration Procurement Specialists]
+      summary: Add procurement specialist (integration chat service)
+      operationId: integrationAddProcurementSpecialist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationProcurementSpecialistCreateRequest'
+      responses:
+        '201':
+          description: Procurement specialist added
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List users, optionally filtered by role
+      operationId: adminGetUsers
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /admin/supplier/{supplier_id}:
+    put:
+      tags: [Admin]
+      summary: Update supplier record
+      operationId: adminUpdateSupplier
+      parameters:
+        - $ref: '#/components/parameters/SupplierId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated supplier
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/po-assignment/{po_id}:
+    put:
+      tags: [Admin]
+      summary: Update PO assignment for PS and supplier
+      operationId: adminUpdatePoAssignment
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                procurement_specialist_id:
+                  type: string
+                supplier_id:
+                  type: string
+      responses:
+        '200':
+          description: Updated PO
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /delegation:
+    get:
+      tags: [Delegations]
+      summary: List delegations with filtering and pagination
+      operationId: getDelegations
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [date_asc, date_desc]
+      responses:
+        '200':
+          description: Delegation page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DelegationListResponse'
+    post:
+      tags: [Delegations]
+      summary: Create delegation
+      operationId: createDelegation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Delegation created
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /delegation/{delegation_id}:
+    get:
+      tags: [Delegations]
+      summary: Get delegation by id
+      operationId: getDelegation
+      parameters:
+        - $ref: '#/components/parameters/DelegationId'
+      responses:
+        '200':
+          description: Delegation
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Delegations]
+      summary: Update delegation
+      operationId: updateDelegation
+      parameters:
+        - $ref: '#/components/parameters/DelegationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated delegation
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Delegations]
+      summary: Delete delegation
+      operationId: deleteDelegation
+      parameters:
+        - $ref: '#/components/parameters/DelegationId'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user-pref/pinned-rows:
+    get:
+      tags: [User Preference]
+      summary: Get pinned PO rows for user
+      operationId: getPinnedRows
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pinned rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                  pinned_rows:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [User Preference]
+      summary: Update pinned PO rows for user
+      operationId: updatePinnedRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPrefPinnedRowsRequest'
+      responses:
+        '200':
+          description: Updated pinned rows
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user-pref/line-pinned-rows:
+    get:
+      tags: [User Preference]
+      summary: Get pinned line-item rows for user
+      operationId: getLinePinnedRows
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pinned line rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                  line_pinned_rows:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [User Preference]
+      summary: Update pinned line-item rows for user
+      operationId: updateLinePinnedRows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPrefLinePinnedRowsRequest'
+      responses:
+        '200':
+          description: Updated line pinned rows
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /po:
     get:
-      summary: Get Purchase Orders
+      tags: [Purchase Orders]
+      summary: List purchase orders
+      operationId: getPurchaseOrders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: supplier_id
+          in: query
+          schema:
+            type: string
+        - name: supplier_email
+          in: query
+          schema:
+            type: string
+        - name: site
+          in: query
+          schema:
+            type: string
+        - name: procurement_specialist_id
+          in: query
+          schema:
+            type: string
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: po_number
+          in: query
+          schema:
+            type: string
+        - name: supplier_name
+          in: query
+          schema:
+            type: string
+        - name: total_value_from
+          in: query
+          schema:
+            type: number
+        - name: total_value_to
+          in: query
+          schema:
+            type: number
+        - name: delivery_date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: delivery_date_to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: source_system
+          in: query
+          schema:
+            type: string
+        - name: items_from
+          in: query
+          schema:
+            type: integer
+        - name: items_to
+          in: query
+          schema:
+            type: integer
+        - name: mrp_exceptions
+          in: query
+          schema:
+            type: string
+            enum: [Yes, No]
+        - name: pinned_po_list
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: revision_changes
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Paginated purchase orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
-      summary: Create Purchase Order
+      tags: [Purchase Orders]
+      summary: Create purchase order
+      operationId: createPurchaseOrder
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrder'
+      responses:
+        '200':
+          description: PO created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /po/pinned_po_list:
+    get:
+      tags: [Purchase Orders]
+      summary: Get user's pinned PO list
+      operationId: getPinnedPurchaseOrders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated pinned PO list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderListResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /po/{po_id}:
     get:
-      summary: Get PO by ID
+      tags: [Purchase Orders]
+      summary: Get purchase order details (role-adaptive)
+      operationId: getPurchaseOrderById
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      responses:
+        '200':
+          description: PO detail with `ui_config` and `available_actions`
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PurchaseOrder'
+                  - type: object
+                    properties:
+                      ui_config:
+                        type: object
+                      available_actions:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
-      summary: Update PO
+      tags: [Purchase Orders]
+      summary: Update purchase order
+      operationId: updatePurchaseOrder
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: PO updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /po/{po_id}/actions:
+    post:
+      tags: [Purchase Orders]
+      summary: Perform PO line action (supports batch line_item_ids)
+      operationId: performPoAction
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/POActionRequest'
+            example:
+              action: ACKNOWLEDGE
+              line_item_ids: ["00010", "00020"]
+              notes: Supplier acknowledges selected lines
+      responses:
+        '200':
+          description: PO updated after action execution
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PurchaseOrder'
+                  - type: object
+                    properties:
+                      ui_config:
+                        type: object
+                      available_actions:
+                        type: array
+                        items:
+                          type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /po/{po_id}/history:
+    get:
+      tags: [Purchase Orders]
+      summary: Get PO status history
+      operationId: getPoHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      responses:
+        '200':
+          description: PO history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/POHistoryResponse'
+
+  /po/{po_id}/documents:
+    get:
+      tags: [Purchase Orders]
+      summary: Get PO documents
+      operationId: getPoDocuments
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      responses:
+        '200':
+          description: PO documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PODocumentsResponse'
+
+  /po/{po_id}/documents/upload:
+    post:
+      tags: [Purchase Orders]
+      summary: Upload a new PO document for a line item
+      operationId: uploadPoDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [line_item_id, file]
+              properties:
+                line_item_id:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+                document_tag_to:
+                  type: string
+                  default: LINE_ITEM
+                comments:
+                  type: string
+      responses:
+        '200':
+          description: Document uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  document:
+                    $ref: '#/components/schemas/PODocument'
+
+  /po/{po_id}/documents/{document_id}/replace:
+    post:
+      tags: [Purchase Orders]
+      summary: Replace an existing PO document
+      operationId: replacePoDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                comments:
+                  type: string
+      responses:
+        '200':
+          description: Document replaced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  document:
+                    $ref: '#/components/schemas/PODocument'
+
+  /po/{po_id}/documents/{document_id}/actions:
+    post:
+      tags: [Purchase Orders]
+      summary: Review/update document status
+      operationId: performPoDocumentAction
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PODocumentActionRequest'
+      responses:
+        '200':
+          description: Document action applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  document:
+                    $ref: '#/components/schemas/PODocument'
+
+  /po/{po_id}/documents/{document_id}/download:
+    get:
+      tags: [Purchase Orders]
+      summary: Download PO document
+      operationId: downloadPoDocument
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PoId'
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Binary file stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /po/config/dropdowns:
+    get:
+      tags: [Purchase Orders]
+      summary: Get role-based PO dropdown and action configuration
+      operationId: getPoDropdownConfig
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Role config and action transitions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  ui_config:
+                    type: object
+                  actions:
+                    type: array
+                    items:
+                      type: string
+                  status_transitions:
+                    type: object
+                    additionalProperties:
+                      type: string
+
   /chat/sessions:
     get:
-      summary: List chat sessions for current user
+      tags: [Chat]
+      summary: List current user's chat sessions
+      operationId: listChatSessions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: chat_type
+          in: query
+          schema:
+            type: string
+            enum: [PS_SUPPLIER, PS_PS]
+        - name: po_id
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chat sessions page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
     post:
-      summary: Create chat session
-  /chat/sessions/search:
-    get:
-      summary: Search chat sessions and suggestions
+      tags: [Chat]
+      summary: Create chat session (or return existing)
+      operationId: createChatSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSessionCreateRequest'
+      responses:
+        '200':
+          description: Created or existing session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: boolean
+                  session:
+                    type: object
+
   /chat/sessions/search-or-create:
     post:
-      summary: Search existing session or create a new one
+      tags: [Chat]
+      summary: Search-or-create chat session shortcut
+      operationId: searchOrCreateChatSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatSessionCreateRequest'
+      responses:
+        '200':
+          description: Created or existing session
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /chat/sessions/search:
+    get:
+      tags: [Chat]
+      summary: Search chat sessions and suggestions
+      operationId: searchChatSessions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            default: ''
+        - name: chat_type
+          in: query
+          schema:
+            type: string
+            enum: [PS_SUPPLIER, PS_PS]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Search result and suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+
   /chat/sessions/{session_id}/messages:
     get:
-      summary: Get paginated messages for a session
+      tags: [Chat]
+      summary: Get paginated chat messages for a session
+      operationId: getChatMessages
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Messages page
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
-      summary: Send message in chat session
+      tags: [Chat]
+      summary: Send chat message
+      operationId: sendChatMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageCreateRequest'
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: object
+                  session:
+                    type: object
+
   /chat/sessions/{session_id}/read:
     post:
+      tags: [Chat]
       summary: Mark session as read
+      operationId: markSessionRead
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkReadRequest'
+      responses:
+        '200':
+          description: Read state updated
+          content:
+            application/json:
+              schema:
+                type: object
+
   /chat/realtime/bootstrap:
     get:
-      summary: Get realtime connection bootstrap metadata
+      tags: [Chat]
+      summary: Get realtime transport bootstrap metadata
+      operationId: getRealtimeBootstrap
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Realtime bootstrap metadata
+          content:
+            application/json:
+              schema:
+                type: object
+
   /chat/realtime/events:
     post:
-      summary: Event Grid ingestion endpoint for ACS chat events
+      tags: [Chat]
+      summary: Ingest Event Grid events for chat notifications
+      operationId: ingestEventGridEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+      responses:
+        '200':
+          description: Events accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  processed:
+                    type: integer
+
+  /chat:
+    post:
+      tags: [Integration Chat]
+      summary: Start integration chat thread
+      operationId: integrationStartChatThread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationStartChatThreadRequest'
+      responses:
+        '201':
+          description: Chat thread started or reused
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /chat/add:
+    patch:
+      tags: [Integration Chat]
+      summary: Add participant to integration chat thread
+      operationId: integrationAddParticipant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationAddChatParticipantRequest'
+      responses:
+        '200':
+          description: Participant added
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          description: Chat thread not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+x-websocket-endpoints:
+  - path: /chat/realtime/ws
+    query:
+      - name: access_token
+        required: true
+        description: JWT token used for websocket authentication
+    notes: Sends CONNECTED event and supports ping/pong text frames.
+  - path: /ws/{user_id}
+    notes: Legacy websocket endpoint managed by integration websocket service.
