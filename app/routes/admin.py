@@ -2,7 +2,11 @@ from fastapi import APIRouter, HTTPException
 
 from app.db.models import User
 from app.db.session import SessionLocal
-from app.utils.postgres_db import find_relational_purchase_order, replace_relational_purchase_order
+from app.utils.postgres_db import (
+    cleanup_and_reseed_data,
+    find_relational_purchase_order,
+    replace_relational_purchase_order,
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -42,6 +46,15 @@ def get_users(role: str = None):
         return [_serialize_user(row) for row in rows]
     finally:
         session.close()
+
+
+@router.get("/reseed")
+def reseed_data():
+    """Clean up relational seed tables and reseed from canonical seed data."""
+    try:
+        return cleanup_and_reseed_data()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to reseed data: {exc}") from exc
 
 @router.put("/supplier/{supplier_id}")
 def update_supplier(supplier_id: str, supplier_data: dict):
