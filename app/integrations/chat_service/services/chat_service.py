@@ -1,3 +1,5 @@
+import base64
+import binascii
 import os
 from typing import List, Optional, Tuple
 
@@ -16,23 +18,75 @@ class ChatService:
         return cls._instance
 
     def _initialize(self) -> None:
-        connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING")
-        endpoint_url  = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
-        
+        connection_string = os.getenv("AZURE_COMMUNICATION_CONNECTION_STRING") or os.getenv("ACS_CONNECTION_STRING")
+        endpoint_url = os.getenv("AZURE_COMMUNICATION_ENDPOINT")
+
         self._identity_client = None
+        self._user = None
 
         if not connection_string:
-            raise ValueError("AZURE_COMMUNICATION_CONNECTION_STRING environment variable is required")
-        
-        if not endpoint_url:
-            raise ValueError("AZURE_COMMUNICATION_ENDPOINT environment variable is required")
+            raise ValueError(
+                "Azure Communication connection string is missing. "
+                "Set AZURE_COMMUNICATION_CONNECTION_STRING or ACS_CONNECTION_STRING."
+            )
 
-        print(f"Using Azure Communication Services connection string: {connection_string}")
-        print(f"Using Azure Communication Services endpoint URL: {endpoint_url}")
+        self._validate_connection_string(connection_string)
+
+        if not endpoint_url:
+            endpoint_url = self._extract_endpoint_from_connection_string(connection_string)
+
+        if not endpoint_url:
+            raise ValueError(
+                "Azure Communication endpoint is missing. "
+                "Set AZURE_COMMUNICATION_ENDPOINT or include endpoint=... in the connection string."
+            )
 
         self.endpoint_url = endpoint_url
-        self._identity_client = CommunicationIdentityClient.from_connection_string(connection_string)
-        self._user = self._identity_client.create_user()
+        try:
+            self._identity_client = CommunicationIdentityClient.from_connection_string(connection_string)
+        except Exception as exc:
+            raise ValueError(
+                "Invalid Azure Communication connection string. "
+                "Check endpoint and base64 access key formatting."
+            ) from exc
+
+    @staticmethod
+    def _extract_endpoint_from_connection_string(connection_string: str) -> Optional[str]:
+        for segment in connection_string.split(";"):
+            key, _, value = segment.partition("=")
+            if key.strip().lower() == "endpoint":
+                return value.strip() or None
+        return None
+
+    @staticmethod
+    def _extract_access_key(connection_string: str) -> Optional[str]:
+        for segment in connection_string.split(";"):
+            key, _, value = segment.partition("=")
+            if key.strip().lower() == "accesskey":
+                return value.strip() or None
+        return None
+
+    @classmethod
+    def _validate_connection_string(cls, connection_string: str) -> None:
+        try:
+            connection_string.encode("ascii")
+        except UnicodeEncodeError as exc:
+            raise ValueError(
+                "Azure Communication connection string contains non-ASCII characters. "
+                "This usually means the access key was copied with an ellipsis or smart punctuation."
+            ) from exc
+
+        access_key = cls._extract_access_key(connection_string)
+        if not access_key:
+            raise ValueError("Azure Communication connection string is missing accesskey=...")
+
+        try:
+            base64.b64decode(access_key, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(
+                "Azure Communication access key is not valid base64. "
+                "Use the full key from the Azure portal without truncation."
+            ) from exc
 
     @property
     def identity_client(self) -> CommunicationIdentityClient:
@@ -40,6 +94,8 @@ class ChatService:
     
     @property
     def user(self) -> CommunicationUserIdentifier:
+        if self._user is None:
+            self._user = self.identity_client.create_user()
         return self._user
 
     def create_user(self) -> CommunicationUserIdentifier:

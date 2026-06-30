@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from pymongo.errors import DuplicateKeyError
+from sqlalchemy.exc import IntegrityError
 
 from dto.procurement_specialist import SupplierCreate
 from database.db import Supplier, supplier_collection
@@ -21,7 +21,7 @@ async def create_supplier(supplier: SupplierCreate) -> Supplier:
             "country": supplier.country
         })
         return Supplier(id=str(result.inserted_id), **supplier.dict())
-    except DuplicateKeyError:
+    except IntegrityError:
         raise HTTPException(
             status_code=400,
             detail="Supplier already exists"
