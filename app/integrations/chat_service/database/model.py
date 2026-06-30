@@ -1,2 +1,2 @@
-# MongoDB is schema-less, so no SQLAlchemy models are required.
+# Chat-service persistence models are defined in app.db.models.
 # This file is intentionally kept for compatibility.
