@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Type
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -1484,13 +1484,14 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
     }
 
 
-def query_relational_purchase_orders() -> List[Dict[str, Any]]:
+def query_relational_purchase_orders(po_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     with _session_scope() as session:
-        rows = (
-            session.query(PurchaseOrderLine)
-            .order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no)
-            .all()
-        )
+        query = session.query(PurchaseOrderLine)
+
+        if po_ids:
+            query = query.filter(PurchaseOrderLine.po_header_id.in_(po_ids))
+
+        rows = query.order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no).all()
         grouped: Dict[str, Dict[str, Any]] = {}
         for row in rows:
             po = grouped.get(row.po_header_id)
@@ -1503,6 +1504,51 @@ def query_relational_purchase_orders() -> List[Dict[str, Any]]:
             po["total_value"] = round(sum(line.get("net_value", 0) for line in po.get("line_items", [])), 2)
 
         return list(grouped.values())
+
+
+def query_accessible_po_header_ids(
+    *,
+    role: str,
+    user_id: str,
+    supplier_msid: Optional[Any] = None,
+    supplier_number: Optional[Any] = None,
+    user_email: Optional[str] = None,
+    po_ids: Optional[List[str]] = None,
+) -> List[str]:
+    with _session_scope() as session:
+        query = session.query(PurchaseOrderLine.po_header_id)
+
+        if po_ids:
+            query = query.filter(PurchaseOrderLine.po_header_id.in_(po_ids))
+
+        if role == "ADMIN":
+            pass
+        elif role == "PROCUREMENT_SPECIALIST":
+            query = query.filter(PurchaseOrderLine.procurement_specialist_id == str(user_id or ""))
+        elif role == "SUPPLIER":
+            supplier_ids: set[int] = set()
+            for value in (supplier_msid, supplier_number):
+                parsed = _safe_int(value)
+                if parsed is not None:
+                    supplier_ids.add(parsed)
+
+            supplier_filters = []
+            if supplier_ids:
+                supplier_filters.append(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
+
+            normalized_email = _safe_str(user_email)
+            if normalized_email:
+                supplier_filters.append(func.lower(PurchaseOrderLine.supplier_email) == normalized_email.lower())
+
+            if supplier_filters:
+                query = query.filter(or_(*supplier_filters))
+            else:
+                return []
+        else:
+            return []
+
+        rows = query.distinct().all()
+        return [row.po_header_id for row in rows if row.po_header_id]
 
 
 def find_relational_purchase_order(po_id: str) -> Optional[Dict[str, Any]]:

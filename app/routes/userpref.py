@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import Dict, List
 
 from app.db.models import User
 from app.db.session import SessionLocal
@@ -26,6 +26,17 @@ class UpdateGridColumnVisibilityRequest(BaseModel):
     user_id: str
     grid_key: str
     column_visibility_model: Dict[str, bool]
+
+
+class PinnedRowsResponse(BaseModel):
+    user_id: str
+    pin_type: str
+    pinned_rows: List[str]
+
+
+class BatchPinnedRowsResponse(BaseModel):
+    user_id: str
+    pinned_rows: Dict[str, List[str]]
 
 def _get_pin_field(pin_type: str) -> str:
     field_name = PIN_FIELD_MAP.get(pin_type)
@@ -78,15 +89,29 @@ def _get_pinned_rows_for_user(user: User, pin_type: str) -> List[str]:
     return list(metadata.get(meta_key, []))
 
 
+def _normalize_pinned_rows(pinned_rows: List[str]) -> List[str]:
+    normalized: List[str] = []
+    seen = set()
+    for row_id in pinned_rows or []:
+        value = str(row_id).strip()
+        if not value or value in seen:
+            continue
+        normalized.append(value)
+        seen.add(value)
+    return normalized
+
+
 def _set_pinned_rows_for_user(user: User, pin_type: str, pinned_rows: List[str]) -> None:
+    normalized_rows = _normalize_pinned_rows(pinned_rows)
+
     if pin_type == "po":
-        user.pinned_rows = list(pinned_rows)
+        user.pinned_rows = normalized_rows
         return
 
     metadata = dict(user.metadata_json or {})
     meta_key = _get_pin_metadata_key(pin_type)
     if meta_key:
-        metadata[meta_key] = list(pinned_rows)
+        metadata[meta_key] = normalized_rows
         user.metadata_json = metadata
 
 
@@ -95,15 +120,42 @@ def _set_pinned_rows_for_user(user: User, pin_type: str, pinned_rows: List[str])
 def get_pinned_rows(
     user_id: str,
     pin_type: str = Query("po", description="Pin type: po, po_to_review, mrp_exception, po_details_lines, po_details_documents"),
-):
+)-> PinnedRowsResponse:
     _get_pin_field(pin_type)
     user = _find_user_or_404(user_id)
 
-    return {
-        "user_id": user_id,
-        "pin_type": pin_type,
-        "pinned_rows": _get_pinned_rows_for_user(user, pin_type),
-    }
+    return PinnedRowsResponse(
+        user_id=user_id,
+        pin_type=pin_type,
+        pinned_rows=_get_pinned_rows_for_user(user, pin_type),
+    )
+
+
+@router.get("/pinned-rows/batch")
+def get_pinned_rows_batch(
+    user_id: str,
+    pin_types: List[str] = Query(
+        ["po", "po_to_review", "mrp_exception"],
+        description="Pin types to fetch",
+    ),
+) -> BatchPinnedRowsResponse:
+    normalized_types: List[str] = []
+    seen_types = set()
+    for pin_type in pin_types:
+        _get_pin_field(pin_type)
+        if pin_type not in seen_types:
+            normalized_types.append(pin_type)
+            seen_types.add(pin_type)
+
+    user = _find_user_or_404(user_id)
+
+    return BatchPinnedRowsResponse(
+        user_id=user_id,
+        pinned_rows={
+            pin_type: _get_pinned_rows_for_user(user, pin_type)
+            for pin_type in normalized_types
+        },
+    )
 
 
 @router.put("/pinned-rows")
@@ -111,11 +163,12 @@ def update_pinned_rows(req: UpdatePinnedRowsRequest):
     _get_pin_field(req.pin_type)
 
     session = SessionLocal()
+    normalized_rows = _normalize_pinned_rows(req.pinned_rows)
     try:
         user = session.get(User, req.user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        _set_pinned_rows_for_user(user, req.pin_type, req.pinned_rows)
+        _set_pinned_rows_for_user(user, req.pin_type, normalized_rows)
         session.add(user)
         session.commit()
     finally:
@@ -125,7 +178,7 @@ def update_pinned_rows(req: UpdatePinnedRowsRequest):
         "message": "Pinned rows updated successfully",
         "user_id": req.user_id,
         "pin_type": req.pin_type,
-        "pinned_rows": req.pinned_rows,
+        "pinned_rows": normalized_rows,
     }
 
 
