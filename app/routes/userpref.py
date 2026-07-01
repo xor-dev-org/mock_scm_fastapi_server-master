@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 
 from app.db.models import User
 from app.db.session import SessionLocal
@@ -22,6 +22,10 @@ class UpdatePinnedRowsRequest(BaseModel):
     pinned_rows: List[str]
     pin_type: str = "po"
 
+class UpdateGridColumnVisibilityRequest(BaseModel):
+    user_id: str
+    grid_key: str
+    column_visibility_model: Dict[str, bool]
 
 def _get_pin_field(pin_type: str) -> str:
     field_name = PIN_FIELD_MAP.get(pin_type)
@@ -152,3 +156,52 @@ def update_line_pinned_rows(req: UpdateLinePinnedRowsRequest):
         "user_id": req.user_id,
         "line_pinned_rows": req.line_pinned_rows,
     }
+
+@router.get("/grid-column-visibility")
+def get_grid_column_visibility(user_id: str, grid_key: str):
+    if not grid_key.strip():
+        raise HTTPException(status_code=400, detail="grid_key is required")
+
+    user = _find_user_or_404(user_id)
+
+    metadata = dict(user.metadata_json or {})
+    grid_visibility_map = dict(metadata.get("grid_column_visibility") or {})
+
+    return {
+        "user_id": user_id,
+        "grid_key": grid_key,
+        "column_visibility_model": dict(grid_visibility_map.get(grid_key) or {}),
+    }
+
+
+@router.put("/grid-column-visibility")
+def update_grid_column_visibility(req: UpdateGridColumnVisibilityRequest):
+    if not req.grid_key.strip():
+        raise HTTPException(status_code=400, detail="grid_key is required")
+
+    session = SessionLocal()
+    try:
+        user = session.get(User, req.user_id)
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        metadata = dict(user.metadata_json or {})
+        grid_visibility_map = dict(metadata.get("grid_column_visibility") or {})
+
+        grid_visibility_map[req.grid_key] = dict(req.column_visibility_model)
+        metadata["grid_column_visibility"] = grid_visibility_map
+
+        user.metadata_json = metadata
+
+        session.add(user)
+        session.commit()
+
+        return {
+            "message": "Grid column visibility updated successfully",
+            "user_id": req.user_id,
+            "grid_key": req.grid_key,
+            "column_visibility_model": req.column_visibility_model,
+        }
+    finally:
+        session.close()
