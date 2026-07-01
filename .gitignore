@@ -34,6 +34,9 @@ ENV/
 env/
 myenv/
 
+.python-version
+*.zip
+
 # FastAPI / Uvicorn
 *.log
 

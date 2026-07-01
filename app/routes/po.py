@@ -1,5 +1,6 @@
 from copy import deepcopy
 from functools import lru_cache
+import time
 
 from datetime import datetime, timedelta
 import logging
@@ -838,13 +839,18 @@ def get_pos(
     tab_mode: Optional[str] = Query(default=None),
     include_line_items_only: bool = Query(default=False),
 ):
+    t0 = time.perf_counter()
     current_user = _current_user(authorization)
+    role = current_user.get("role")
+    email = current_user.get("email")
+    logger.info(f"get_pos: user={email}, role={role}, include_line_items_only={include_line_items_only}")
+    logger.info(f"get_pos: _current_user (JWT decode + DB fetch) done in {time.perf_counter() - t0:.3f}s")
 
-    logger.info("Calling _dedupe_preserve_order()")
     scoped_po_ids = _dedupe_preserve_order(pinned_po_list or [])
-    logger.info(f"Call to _dedupe_preserve_order() returned {len(scoped_po_ids)} unique PO IDs")
+
     if scoped_po_ids:
-        logger.info(f"Calling query_accessible_po_header_ids()")
+        logger.info(f"get_pos: [pinned] {len(scoped_po_ids)} pinned IDs, calling query_accessible_po_header_ids")
+        t1 = time.perf_counter()
         accessible_ids = query_accessible_po_header_ids(
             role=current_user.get("role", ""),
             user_id=current_user.get("id", ""),
@@ -853,15 +859,17 @@ def get_pos(
             user_email=current_user.get("email"),
             po_ids=scoped_po_ids,
         )
-        logger.info(f"Call to query_accessible_po_header_ids() returned {len(accessible_ids)} accessible PO IDs")
+        logger.info(f"get_pos: [pinned] query_accessible_po_header_ids returned {len(accessible_ids)} IDs in {time.perf_counter() - t1:.3f}s")
         accessible_set = set(accessible_ids)
         scoped_po_ids = [po_id for po_id in scoped_po_ids if po_id in accessible_set]
 
-        logger.info(f"Calling _load_pos_by_ids()")
+        t2 = time.perf_counter()
         pos = _load_pos_by_ids(scoped_po_ids)
-        logger.info(f"Call to _load_pos_by_ids() returned {len(pos)} POs")
+        logger.info(f"get_pos: [pinned] _load_pos_by_ids returned {len(pos)} POs in {time.perf_counter() - t2:.3f}s")
+
     elif not include_line_items_only:
-        logger.info(f"Calling query_purchase_order_list() with page={page}, page_size={page_size}")
+        logger.info(f"get_pos: [po_mode] calling query_purchase_order_list page={page} page_size={page_size}")
+        t1 = time.perf_counter()
         po_page = query_purchase_order_list(
             role=current_user.get("role", ""),
             user_id=current_user.get("id", ""),
@@ -890,199 +898,92 @@ def get_pos(
             mrp_exceptions=mrp_exceptions,
             revision_changes=revision_changes,
         )
-        logger.info(f"Call to query_purchase_order_list() returned {len(po_page.get('po_ids', []))} PO IDs")
-
         page_po_ids = po_page.get("po_ids", [])
+        logger.info(f"get_pos: [po_mode] query_purchase_order_list returned {len(page_po_ids)} IDs (total={po_page.get('total', 0)}) in {time.perf_counter() - t1:.3f}s")
 
-        logger.info(f"Calling _load_pos_by_ids() for page PO IDs")
+        t2 = time.perf_counter()
         pos = _load_pos_by_ids(page_po_ids) if page_po_ids else []
-        logger.info(f"Call to _load_pos_by_ids() returned {len(pos)} POs for page PO IDs")
+        logger.info(f"get_pos: [po_mode] _load_pos_by_ids returned {len(pos)} POs in {time.perf_counter() - t2:.3f}s")
+
         if page_po_ids:
-            logger.info(f"Calling _sort_pos_by_id_order() to sort POs by page PO IDs")
             pos = _sort_pos_by_id_order(pos, page_po_ids)
-            logger.info(f"Call to _sort_pos_by_id_order() returned {len(pos)} sorted POs")
-        
-        logger.info(f"Filtering POs for access by current user by calling _can_access_po()")
         pos = [po for po in pos if _can_access_po(po, current_user)]
-        logger.info(f"After calling _can_access_po(), {len(pos)} POs remain for current user")
 
-        logger.info(f"Calling enrich_buyer_details() to include buyer details in POs")
+        t3 = time.perf_counter()
         enrich_buyer_details(pos)
-        logger.info(f"Call to enrich_buyer_details() completed, total POs with buyer details: {len(pos)}")
+        logger.info(f"get_pos: [po_mode] enrich_buyer_details done for {len(pos)} POs in {time.perf_counter() - t3:.3f}s")
 
+        logger.info(f"get_pos: [po_mode] total elapsed {time.perf_counter() - t0:.3f}s")
         return {
             "page": page,
             "page_size": page_size,
             "total": po_page.get("total", 0),
             "data": pos,
         }
+
     else:
-        logger.info(f"Calling _load_pos() to load all POs for line items only")
+        logger.info("get_pos: [line_items_mode] calling _load_pos()")
+        t1 = time.perf_counter()
         pos = _load_pos()
-        logger.info(f"Call to _load_pos() returned {len(pos)} POs for line items only")
-        
-        logger.info(f"Filtering POs for access by current user by calling _can_access_po()")
+        logger.info(f"get_pos: [line_items_mode] _load_pos returned {len(pos)} POs in {time.perf_counter() - t1:.3f}s")
         pos = [po for po in pos if _can_access_po(po, current_user)]
-        logger.info(f"After calling _can_access_po(), {len(pos)} POs remain for current user")
-    
-    # Preserve pinned ID order after access filtering.
+        logger.info(f"get_pos: [line_items_mode] access filter: {len(pos)} POs accessible")
+
+    # Python-level filters (pinned and line_items_only paths fall through here)
+    t_filter = time.perf_counter()
     if scoped_po_ids:
-        logger.info(f"Calling _sort_pos_by_id_order() to sort POs by pinned PO IDs")
         pos = _sort_pos_by_id_order(pos, scoped_po_ids)
-        logger.info(f"Call to _sort_pos_by_id_order() returned {len(pos)} sorted POs by pinned PO IDs")
     if status:
-        logger.info(f"Filtering POs by status: {status}")
         pos = [p for p in pos if p["status"] == status]
-        logger.info(f"After filtering by status, {len(pos)} POs remain")
-
     if supplier_id:
-        logger.info(f"Filtering POs by supplier ID: {supplier_id}")
         pos = [p for p in pos if p["supplier_id"] == supplier_id]
-        logger.info(f"After filtering by supplier ID, {len(pos)} POs remain")
-
     if supplier_email:
-        logger.info(f"Filtering POs by supplier email: {supplier_email}")
         pos = [p for p in pos if p["supplier_email"] == supplier_email]
-        logger.info(f"After filtering by supplier email, {len(pos)} POs remain")
-
     if site:
-        logger.info(f"Filtering POs by site: {site}")
         selected_sites = _parse_csv_filter(site)
-        logger.info(f"Parsed selected sites: {selected_sites}")
-
         if selected_sites:
-            logger.info(f"Filtering POs to include only those with selected sites")
-            pos = [
-                p
-                for p in pos
-                if p.get("site") in selected_sites
-            ]
-            logger.info(f"After filtering by selected sites, {len(pos)} POs remain")
-
+            pos = [p for p in pos if p.get("site") in selected_sites]
     if procurement_specialist_id:
-        logger.info(f"Filtering POs by procurement specialist ID: {procurement_specialist_id}")
-        pos = [
-            p
-            for p in pos
-            if p["procurement_specialist_id"] == procurement_specialist_id
-        ]
-        logger.info(f"After filtering by procurement specialist ID, {len(pos)} POs remain")
-
+        pos = [p for p in pos if p["procurement_specialist_id"] == procurement_specialist_id]
     if po_number:
         po_number_lower = po_number.lower()
-
-        logger.info(f"Filtering POs by PO number containing: {po_number_lower}")
-        pos = [
-            p for p in pos
-            if po_number_lower in p["po_number"].lower()
-        ]
-        logger.info(f"After filtering by PO number, {len(pos)} POs remain")
-
+        pos = [p for p in pos if po_number_lower in p["po_number"].lower()]
     if supplier_name:
-        logger.info(f"Filtering POs by supplier name containing: {supplier_name}")
         supplier_name_lower = supplier_name.lower()
-
-        pos = [
-            p for p in pos
-            if supplier_name_lower in p["supplier_name"].lower()
-        ]
-        logger.info(f"After filtering by supplier name, {len(pos)} POs remain")
-
+        pos = [p for p in pos if supplier_name_lower in p["supplier_name"].lower()]
     if total_value_from is not None:
-        logger.info(f"Filtering POs by total value from: {total_value_from}")
-        pos = [
-            p for p in pos
-            if p["total_value"] >= total_value_from
-        ]
-        logger.info(f"After filtering by total value from, {len(pos)} POs remain")
-
+        pos = [p for p in pos if p["total_value"] >= total_value_from]
     if total_value_to is not None:
-        logger.info(f"Filtering POs by total value to: {total_value_to}")
-        pos = [
-            p for p in pos
-            if p["total_value"] <= total_value_to
-        ]
-        logger.info(f"After filtering by total value to, {len(pos)} POs remain")
-
+        pos = [p for p in pos if p["total_value"] <= total_value_to]
     if source_system:
-        logger.info(f"Filtering POs by source system: {source_system}")
         pos = [p for p in pos if p["source_system"].lower() == source_system.lower()]
-        logger.info(f"After filtering by source system, {len(pos)} POs remain")
-
     if revision_changes is not None:
-        logger.info(f"Filtering POs by revision changes: {revision_changes}")
         pos = [p for p in pos if p.get("revision_changes") == revision_changes]
-        logger.info(f"After filtering by revision changes, {len(pos)} POs remain")
-
     if items_from is not None:
-        logger.info(f"Filtering POs by minimum number of items: {items_from}")
-        pos = [
-            p for p in pos
-            if len(p["line_items"]) >= items_from
-        ]
-        logger.info(f"After filtering by minimum number of items, {len(pos)} POs remain")
-
+        pos = [p for p in pos if len(p["line_items"]) >= items_from]
     if items_to is not None:
-        logger.info(f"Filtering POs by maximum number of items: {items_to}")
-        pos = [
-            p for p in pos
-            if len(p["line_items"]) <= items_to
-        ]
-        logger.info(f"After filtering by maximum number of items, {len(pos)} POs remain")
-
-    if mrp_exceptions:
-        logger.info(f"Filtering POs by MRP exceptions: {mrp_exceptions}")
-        if mrp_exceptions == "Yes":
-            pos = [p for p in pos if p["mrp_exceptions"] != "NONE"]
-        elif mrp_exceptions == "No":
-            pos = [p for p in pos if p["mrp_exceptions"] == "NONE"]
-        logger.info(f"After filtering by MRP exceptions, {len(pos)} POs remain")
-
+        pos = [p for p in pos if len(p["line_items"]) <= items_to]
+    if mrp_exceptions == "Yes":
+        pos = [p for p in pos if p["mrp_exceptions"] != "NONE"]
+    elif mrp_exceptions == "No":
+        pos = [p for p in pos if p["mrp_exceptions"] == "NONE"]
     if delivery_date_from:
-        logger.info(f"Filtering POs by delivery date from: {delivery_date_from}")
-        from_date = datetime.strptime(
-            delivery_date_from,
-            "%Y-%m-%d"
-        ).date()
-
-        pos = [
-            p for p in pos
-            if datetime.strptime(
-                p["delivery_date"],
-                "%Y-%m-%d"
-            ).date() >= from_date
-        ]
-        logger.info(f"After filtering by delivery date from, {len(pos)} POs remain")
-
+        from_date = datetime.strptime(delivery_date_from, "%Y-%m-%d").date()
+        pos = [p for p in pos if datetime.strptime(p["delivery_date"], "%Y-%m-%d").date() >= from_date]
     if delivery_date_to:
-        logger.info(f"Filtering POs by delivery date to: {delivery_date_to}")
-        to_date = datetime.strptime(
-            delivery_date_to,
-            "%Y-%m-%d"
-        ).date()
+        to_date = datetime.strptime(delivery_date_to, "%Y-%m-%d").date()
+        pos = [p for p in pos if datetime.strptime(p["delivery_date"], "%Y-%m-%d").date() <= to_date]
+    logger.info(f"get_pos: Python filters done, {len(pos)} POs remain in {time.perf_counter() - t_filter:.3f}s")
 
+    t_enrich = time.perf_counter()
+    enrich_buyer_details(pos)
+    logger.info(f"get_pos: enrich_buyer_details done for {len(pos)} POs in {time.perf_counter() - t_enrich:.3f}s")
+
+    if search:
+        t_search = time.perf_counter()
+        search_lower = search.lower().strip()
         pos = [
             p for p in pos
-            if datetime.strptime(
-                p["delivery_date"],
-                "%Y-%m-%d"
-            ).date() <= to_date
-        ]
-        logger.info(f"After filtering by delivery date to, {len(pos)} POs remain")
-
-    logger.info("Calling enrich_buyer_details() the second time to include buyer details in the PO list")
-    #include buyer details in the PO list
-    enrich_buyer_details(pos)
-    logger.info(f"After calling enrich_buyer_details() the second time, total POs with buyer details: {len(pos)}")
-
-    # Search filter
-    if search:
-        search_lower = search.lower().strip()
-
-        logger.info(f"Filtering POs by search term: {search_lower}")
-        pos = [
-            p
-            for p in pos
             if (
                 search_lower in p.get("po_number", "").lower()
                 or search_lower in p.get("supplier_name", "").lower()
@@ -1100,63 +1001,50 @@ def get_pos(
                 )
             )
         ]
-        logger.info(f"After filtering by search term, {len(pos)} POs remain")
-
-    # Sorting
-    # if sort_by == "delivery_date_asc":
-    #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""))
-    # elif sort_by == "delivery_date_desc":
-    #     pos = sorted(pos, key=lambda x: x.get("delivery_date", ""), reverse=True)
+        logger.info(f"get_pos: search filter narrowed to {len(pos)} POs in {time.perf_counter() - t_search:.3f}s")
 
     if sort_by is not None:
-        logger.info(f"Sorting POs by {sort_by} in {'descending' if sort_order == 'desc' else 'ascending'} order")
+        t_sort = time.perf_counter()
         pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
-        logger.info(f"After sorting, {len(pos)} POs remain")
+        logger.info(f"get_pos: sort by '{sort_by}' done in {time.perf_counter() - t_sort:.3f}s")
 
     if include_line_items_only:
         allowed_tab_modes = {"ready_to_review", "mrp_exception", "exceptions_alerts", "action_required"}
         normalized_tab_mode = tab_mode if tab_mode in allowed_tab_modes else None
 
-        logger.info(f"Flattening POs into line items for tab mode: {normalized_tab_mode}")
+        t_flatten = time.perf_counter()
         line_rows = _flatten_po_line_items(pos, normalized_tab_mode)
-        logger.info(f"After flattening, {len(line_rows)} line items remain")
+        logger.info(f"get_pos: [line_items_mode] _flatten_po_line_items produced {len(line_rows)} rows in {time.perf_counter() - t_flatten:.3f}s")
 
         if search:
+            t_ls = time.perf_counter()
             search_lower = search.lower().strip()
-            logger.info(f"Filtering line items by search term: {search_lower}")
             line_rows = [row for row in line_rows if _line_row_matches_search(row, search_lower)]
-            logger.info(f"After filtering line items by search term, {len(line_rows)} line items remain")
+            logger.info(f"get_pos: [line_items_mode] search filter narrowed to {len(line_rows)} rows in {time.perf_counter() - t_ls:.3f}s")
 
         if sort_by is not None:
-            logger.info(f"Sorting line items by {sort_by} in {'descending' if sort_order == 'desc' else 'ascending'} order")
-            line_rows = sorted(
-                line_rows,
-                key=lambda x: x.get(sort_by, ""),
-                reverse=sort_order == "desc",
-            )
-            logger.info(f"After sorting line items, {len(line_rows)} line items remain")
+            t_lsort = time.perf_counter()
+            line_rows = sorted(line_rows, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
+            logger.info(f"get_pos: [line_items_mode] sort by '{sort_by}' done in {time.perf_counter() - t_lsort:.3f}s")
 
         total_rows = len(line_rows)
         start = (page - 1) * page_size
-        end = start + page_size
-
+        logger.info(f"get_pos: [line_items_mode] returning page {page} ({page_size} of {total_rows} rows), total elapsed {time.perf_counter() - t0:.3f}s")
         return {
             "page": page,
             "page_size": page_size,
             "total": total_rows,
-            "data": line_rows[start:end],
+            "data": line_rows[start:start + page_size],
         }
 
     total = len(pos)
-
     start = (page - 1) * page_size
-    end = start + page_size
-
+    logger.info(f"get_pos: returning page {page} ({page_size} of {total} POs), total elapsed {time.perf_counter() - t0:.3f}s")
     return {
         "page": page,
         "page_size": page_size,
         "total": total,
-        "data": pos[start:end],
+        "data": pos[start:start + page_size],
     }
 
 @router.get("/pinned_po_list")
@@ -1166,33 +1054,28 @@ def get_pinned_pos(
     user_id: str = Query(..., description="User ID to fetch pinned POs for"),
     authorization: Optional[str] = Header(default=None),
 ):
+    t0 = time.perf_counter()
     current_user = _current_user(authorization)
     if current_user.get("role") != "ADMIN" and current_user.get("id") != user_id:
         raise HTTPException(status_code=403, detail="Forbidden to access pinned PO list")
+    logger.info(f"get_pinned_pos: user={current_user.get('email')}, user_id={user_id}")
 
+    t1 = time.perf_counter()
     session = SessionLocal()
     try:
         user = session.get(User, user_id)
     finally:
         session.close()
+    logger.info(f"get_pinned_pos: DB fetch user done in {time.perf_counter() - t1:.3f}s")
 
-    logger.info("pinned_po_list: Calling _dedupe_preserve_order()")
     pinned_po_ids = _dedupe_preserve_order(list(user.pinned_rows or []) if user else [])
-    logger.info(f"pinned_po_list: Call to _dedupe_preserve_order() returned {len(pinned_po_ids)} unique pinned PO IDs")
-
     if not pinned_po_ids:
-        logger.info("pinned_po_list: No pinned PO IDs found, returning empty result")
-        return {
-            "page": page,
-            "page_size": page_size,
-            "total": 0,
-            "data": [],
-        }
+        logger.info(f"get_pinned_pos: no pinned IDs, returning empty in {time.perf_counter() - t0:.3f}s")
+        return {"page": page, "page_size": page_size, "total": 0, "data": []}
 
     start = (page - 1) * page_size
-    end = start + page_size
 
-    logger.info("pinned_po_list: Calling query_accessible_po_header_ids()")
+    t2 = time.perf_counter()
     accessible_ids = query_accessible_po_header_ids(
         role=current_user.get("role", ""),
         user_id=current_user.get("id", ""),
@@ -1201,23 +1084,24 @@ def get_pinned_pos(
         user_email=current_user.get("email"),
         po_ids=pinned_po_ids,
     )
-    logger.info(f"pinned_po_list: Call to query_accessible_po_header_ids() returned {len(accessible_ids)} accessible PO IDs")
+    logger.info(f"get_pinned_pos: query_accessible_po_header_ids returned {len(accessible_ids)}/{len(pinned_po_ids)} IDs in {time.perf_counter() - t2:.3f}s")
+
     accessible_set = set(accessible_ids)
     ordered_accessible_ids = [po_id for po_id in pinned_po_ids if po_id in accessible_set]
     total = len(ordered_accessible_ids)
-    logger.info(f"pinned_po_list: {total} accessible pinned PO IDs after filtering, page={page}, page_size={page_size}")
+    paged_ids = ordered_accessible_ids[start:start + page_size]
 
-    paged_ids = ordered_accessible_ids[start:end]
-    logger.info(f"pinned_po_list: Calling _load_pos_by_ids() for {len(paged_ids)} paged PO IDs")
+    t3 = time.perf_counter()
     pos = _load_pos_by_ids(paged_ids)
-    logger.info(f"pinned_po_list: Call to _load_pos_by_ids() returned {len(pos)} POs")
-    logger.info("pinned_po_list: Calling _sort_pos_by_id_order() to sort POs by pinned PO IDs")
-    pos = _sort_pos_by_id_order(pos, paged_ids)
-    logger.info(f"pinned_po_list: Call to _sort_pos_by_id_order() returned {len(pos)} sorted POs")
-    logger.info("pinned_po_list: Calling enrich_buyer_details() to include buyer details in POs")
-    enrich_buyer_details(pos)
-    logger.info(f"pinned_po_list: Call to enrich_buyer_details() completed, total POs with buyer details: {len(pos)}")
+    logger.info(f"get_pinned_pos: _load_pos_by_ids returned {len(pos)} POs in {time.perf_counter() - t3:.3f}s")
 
+    pos = _sort_pos_by_id_order(pos, paged_ids)
+
+    t4 = time.perf_counter()
+    enrich_buyer_details(pos)
+    logger.info(f"get_pinned_pos: enrich_buyer_details done in {time.perf_counter() - t4:.3f}s")
+
+    logger.info(f"get_pinned_pos: returning page {page} ({len(pos)} of {total} POs), total elapsed {time.perf_counter() - t0:.3f}s")
     return {
         "page": page,
         "page_size": page_size,
@@ -1227,11 +1111,13 @@ def get_pinned_pos(
 
 @router.get("/config/sites")
 def get_available_sites(authorization: Optional[str] = Header(default=None)):
+    t0 = time.perf_counter()
     current_user = _current_user(authorization)
+    role = current_user.get("role")
+    logger.info(f"config/sites: role={role}")
 
     session = SessionLocal()
     try:
-        logger.info("config/sites: Building query for available sites")
         query = (
             session.query(LocationMaster.location_name)
             .join(
@@ -1241,14 +1127,9 @@ def get_available_sites(authorization: Optional[str] = Header(default=None)):
             .filter(LocationMaster.location_name.isnot(None))
         )
 
-        if current_user.get("role") == "SUPPLIER":
-            supplier_keys = [
-                current_user.get("supplier_msid"),
-                current_user.get("supplier_number"),
-            ]
-
+        if role == "SUPPLIER":
             supplier_ids = []
-            for value in supplier_keys:
+            for value in [current_user.get("supplier_msid"), current_user.get("supplier_number")]:
                 if value is None:
                     continue
                 try:
@@ -1256,27 +1137,17 @@ def get_available_sites(authorization: Optional[str] = Header(default=None)):
                 except (TypeError, ValueError):
                     continue
 
-            logger.info(f"config/sites: SUPPLIER role detected, resolved supplier_ids={supplier_ids}")
+            logger.info(f"config/sites: SUPPLIER resolved supplier_ids={supplier_ids}")
             if supplier_ids:
                 query = query.filter(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
             else:
-                logger.info("config/sites: No valid supplier IDs resolved, returning empty sites list")
+                logger.info(f"config/sites: no valid supplier IDs, returning empty in {time.perf_counter() - t0:.3f}s")
                 return {"sites": []}
 
-        logger.info("config/sites: Executing distinct sites query")
-        rows = (
-            query.distinct()
-            .order_by(LocationMaster.location_name.asc())
-            .all()
-        )
-
-        sites = [
-            row.location_name
-            for row in rows
-            if row.location_name
-        ]
-
-        logger.info(f"config/sites: Query returned {len(sites)} sites")
+        t1 = time.perf_counter()
+        rows = query.distinct().order_by(LocationMaster.location_name.asc()).all()
+        sites = [row.location_name for row in rows if row.location_name]
+        logger.info(f"config/sites: query returned {len(sites)} sites in {time.perf_counter() - t1:.3f}s, total elapsed {time.perf_counter() - t0:.3f}s")
         return {"sites": sites}
     finally:
         session.close()
