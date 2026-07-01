@@ -64,11 +64,12 @@ class SQLAgentService:
                 temperature=0,
             )
             toolkit = SQLDatabaseToolkit(db=self._db, llm=llm)
+            system_message = SYS_PROMPT.format(dialect="PostgreSQL", top_k=5)
             self._agent = create_sql_agent(
                 llm=llm,
                 toolkit=toolkit,
                 agent_type="tool-calling",
-                prefix=SYS_PROMPT,
+                prefix=system_message,
                 suffix=PROMPT,
                 verbose=False,
             )
