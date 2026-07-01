@@ -21,6 +21,7 @@ from app.utils.postgres_db import (
     create_relational_purchase_order,
     find_relational_purchase_order,
     query_accessible_po_header_ids,
+    query_purchase_order_list,
     query_relational_purchase_orders,
     replace_relational_purchase_order,
 )
@@ -851,6 +852,49 @@ def get_pos(
         accessible_set = set(accessible_ids)
         scoped_po_ids = [po_id for po_id in scoped_po_ids if po_id in accessible_set]
         pos = _load_pos_by_ids(scoped_po_ids)
+    elif not include_line_items_only:
+        po_page = query_purchase_order_list(
+            role=current_user.get("role", ""),
+            user_id=current_user.get("id", ""),
+            supplier_msid=current_user.get("supplier_msid"),
+            supplier_number=current_user.get("supplier_number"),
+            user_email=current_user.get("email"),
+            page=page,
+            page_size=page_size,
+            status=status,
+            supplier_id=supplier_id,
+            supplier_email=supplier_email,
+            site=site,
+            procurement_specialist_id=procurement_specialist_id,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+            po_number=po_number,
+            supplier_name=supplier_name,
+            total_value_from=total_value_from,
+            total_value_to=total_value_to,
+            delivery_date_from=delivery_date_from,
+            delivery_date_to=delivery_date_to,
+            source_system=source_system,
+            items_from=items_from,
+            items_to=items_to,
+            mrp_exceptions=mrp_exceptions,
+            revision_changes=revision_changes,
+        )
+
+        page_po_ids = po_page.get("po_ids", [])
+        pos = _load_pos_by_ids(page_po_ids) if page_po_ids else []
+        if page_po_ids:
+            pos = _sort_pos_by_id_order(pos, page_po_ids)
+        pos = [po for po in pos if _can_access_po(po, current_user)]
+        enrich_buyer_details(pos)
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total": po_page.get("total", 0),
+            "data": pos,
+        }
     else:
         pos = _load_pos()
         pos = [po for po in pos if _can_access_po(po, current_user)]
