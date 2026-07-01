@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Type
 
-from sqlalchemy import create_engine, func, or_, text
+from sqlalchemy import and_, create_engine, func, or_, text
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -1482,6 +1482,69 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
         "workflow_stage": "PO_DETAILS",
         "revision_changes": 0,
     }
+
+def get_all_pos(
+    email: str, 
+    user_id: str, 
+    role: str, 
+    supplier_msid: Optional[str], 
+    supplier_number: Optional[str]
+) -> List[Dict[str, Any]]:
+    
+    # 1. Base conditions depending on the user role
+    if role == "PROCUREMENT_SPECIALIST":
+        conditions = [PurchaseOrderLine.procurement_specialist_id == user_id]
+    else:
+        # Cast string to int safely to match the database column type (Integer)
+        msid_int = int(supplier_msid) if supplier_msid else None
+        conditions = [PurchaseOrderLine.local_supplier_id == msid_int]
+
+    # 2. Append optional filters if provided
+    if supplier_number:
+        conditions.append(PurchaseOrderLine.po_no == supplier_number)
+
+    with _session_scope() as session:
+        # 3. Query records (lazy="joined" automatically fetches supplier in this query)
+        rows = (
+            session.query(PurchaseOrderLine)
+            .filter(*conditions)
+            .order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no)
+            .all()
+        )
+
+        # 4. Serialize model data clean of SQLAlchemy state
+        result = []
+        for row in rows:
+            # Build clean PO dictionary field by field
+            po_dict = {col.name: getattr(row, col.name) for col in row.__table__.columns}
+            
+            # Explicitly capture JSON fields handled by SQLAlchemy mapping
+            po_dict["line_documents"] = row.line_documents
+            po_dict["line_history"] = row.line_history
+            po_dict["split_deliveries"] = row.split_deliveries
+
+            # Include joined supplier details dynamically
+            # 2. Safely grab Joined SUPPLIER details
+            po_dict["supplier"] = (
+                {col.name: getattr(row.supplier, col.name) for col in row.supplier.__table__.columns}
+                if row.supplier else None
+            )
+
+            # 3. Safely grab Joined LOCATION details
+            po_dict["location"] = (
+                {col.name: getattr(row.location, col.name) for col in row.location.__table__.columns}
+                if row.location else None
+            )
+
+            # 4. Safely grab Joined ITEM details
+            po_dict["item"] = (
+                {col.name: getattr(row.item, col.name) for col in row.item.__table__.columns}
+                if row.item else None
+            )
+
+            result.append(po_dict)
+
+        return result
 
 
 def query_relational_purchase_orders(po_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:

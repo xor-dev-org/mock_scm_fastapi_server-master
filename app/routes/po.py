@@ -20,6 +20,7 @@ from app.utils.json_db import read_json
 from app.utils.postgres_db import (
     create_relational_purchase_order,
     find_relational_purchase_order,
+    get_all_pos,
     query_accessible_po_header_ids,
     query_relational_purchase_orders,
     replace_relational_purchase_order,
@@ -316,8 +317,10 @@ def _normalize_po(po: Dict) -> Dict:
     return normalized
 
 
-def _load_pos() -> List[Dict]:
+def _load_pos(email: str, user_id: str, role: str, supplier_msid: Optional[str], supplier_number: Optional[str]) -> List[Dict]:
+    logger.info(f"Making a call to query_relational_purchase_orders()")
     pos = query_relational_purchase_orders()
+    logger.info("Call to query_relational_purchase_orders() completed")
     return [_normalize_po(po) for po in pos]
 
 
@@ -838,26 +841,38 @@ def get_pos(
     include_line_items_only: bool = Query(default=False),
 ):
     current_user = _current_user(authorization)
-    scoped_po_ids = _dedupe_preserve_order(pinned_po_list or [])
-    if scoped_po_ids:
-        accessible_ids = query_accessible_po_header_ids(
-            role=current_user.get("role", ""),
-            user_id=current_user.get("id", ""),
-            supplier_msid=current_user.get("supplier_msid"),
-            supplier_number=current_user.get("supplier_number"),
-            user_email=current_user.get("email"),
-            po_ids=scoped_po_ids,
-        )
-        accessible_set = set(accessible_ids)
-        scoped_po_ids = [po_id for po_id in scoped_po_ids if po_id in accessible_set]
-        pos = _load_pos_by_ids(scoped_po_ids)
-    else:
-        pos = _load_pos()
-        pos = [po for po in pos if _can_access_po(po, current_user)]
+    # scoped_po_ids = _dedupe_preserve_order(pinned_po_list or [])
+    # if scoped_po_ids:
+    #     accessible_ids = query_accessible_po_header_ids(
+    #         role=current_user.get("role", ""),
+    #         user_id=current_user.get("id", ""),
+    #         supplier_msid=current_user.get("supplier_msid"),
+    #         supplier_number=current_user.get("supplier_number"),
+    #         user_email=current_user.get("email"),
+    #         po_ids=scoped_po_ids,
+    #     )
+    #     accessible_set = set(accessible_ids)
+    #     scoped_po_ids = [po_id for po_id in scoped_po_ids if po_id in accessible_set]
+    #     pos = _load_pos_by_ids(scoped_po_ids)
+    # else:
+    #     pos = _load_pos()
+    #     pos = [po for po in pos if _can_access_po(po, current_user)]
+    email = current_user.get("email")
+    supplier_msid = current_user.get("supplier_msid")
+    supplier_number = current_user.get("supplier_number")
+    role = current_user.get("role")
+    user_id = current_user.get("id")
+
+    logger.info(f"Getting all POs for user {email}")
+
+    logger.info(f"Making a call to _load_pos()")
+    pos = get_all_pos(email, user_id, role, supplier_msid, supplier_number)
+    logger.info(f"Retrieved {len(pos)} POs from the database")
+    # pos = [po for po in pos if _can_access_po(po, current_user)]
     
     # Preserve pinned ID order after access filtering.
-    if scoped_po_ids:
-        pos = _sort_pos_by_id_order(pos, scoped_po_ids)
+    # if scoped_po_ids:
+    #     pos = _sort_pos_by_id_order(pos, scoped_po_ids)
     if status:
         pos = [p for p in pos if p["status"] == status]
 
@@ -868,7 +883,9 @@ def get_pos(
         pos = [p for p in pos if p["supplier_email"] == supplier_email]
 
     if site:
+        logger.info(f"Filtering POs by site: {site}")
         selected_sites = _parse_csv_filter(site)
+        logger.info("Call to _parse_csv_filter completed")
 
         if selected_sites:
             pos = [
@@ -877,12 +894,12 @@ def get_pos(
                 if p.get("site") in selected_sites
             ]
 
-    if procurement_specialist_id:
-        pos = [
-            p
-            for p in pos
-            if p["procurement_specialist_id"] == procurement_specialist_id
-        ]
+    # if procurement_specialist_id:
+    #     pos = [
+    #         p
+    #         for p in pos
+    #         if p["procurement_specialist_id"] == procurement_specialist_id
+    #     ]
 
     if po_number:
         po_number_lower = po_number.lower()
@@ -964,7 +981,9 @@ def get_pos(
         ]
 
     #include buyer details in the PO list
-    enrich_buyer_details(pos)
+    # logger.info(f"Calling enrich_buyer_details() to include buyer details in the PO list. The total no of POs are {len(pos)}")
+    # enrich_buyer_details(pos)
+    # logger.info("Completed enrich_buyer_details()")
 
     # Search filter
     if search:
