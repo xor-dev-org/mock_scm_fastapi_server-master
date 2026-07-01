@@ -1,4 +1,5 @@
 from copy import deepcopy
+from functools import lru_cache
 
 from datetime import datetime, timedelta
 import logging
@@ -19,6 +20,7 @@ from app.utils.json_db import read_json
 from app.utils.postgres_db import (
     create_relational_purchase_order,
     find_relational_purchase_order,
+    query_accessible_po_header_ids,
     query_relational_purchase_orders,
     replace_relational_purchase_order,
 )
@@ -89,6 +91,7 @@ DEFAULT_DOCUMENT_TAGS = [
 ]
 
 
+@lru_cache(maxsize=1)
 def _load_document_tags() -> List[str]:
     try:
         payload = read_json("document_tags.json")
@@ -315,6 +318,14 @@ def _normalize_po(po: Dict) -> Dict:
 
 def _load_pos() -> List[Dict]:
     pos = query_relational_purchase_orders()
+    return [_normalize_po(po) for po in pos]
+
+
+def _load_pos_by_ids(po_ids: List[str]) -> List[Dict]:
+    if not po_ids:
+        return []
+
+    pos = query_relational_purchase_orders(po_ids=po_ids)
     return [_normalize_po(po) for po in pos]
 
 
@@ -642,9 +653,29 @@ def _get_document_or_404(session, po_id: str, document_id: str):
 
 #fuction to include Buyer details in PO
 def enrich_buyer_details(pos):
+    procurement_specialist_ids = {
+        po.get("procurement_specialist_id")
+        for po in pos
+        if po.get("procurement_specialist_id")
+    }
+
+    if not procurement_specialist_ids:
+        for po in pos:
+            po["buyer_name"] = ""
+            po["buyer_email"] = ""
+            po["buyer_phone"] = ""
+        return
+
     session = SessionLocal()
     try:
-        ps_rows = session.query(User).filter(User.role == "PROCUREMENT_SPECIALIST").all()
+        ps_rows = (
+            session.query(User)
+            .filter(
+                User.role == "PROCUREMENT_SPECIALIST",
+                User.id.in_(procurement_specialist_ids),
+            )
+            .all()
+        )
     finally:
         session.close()
 
@@ -666,6 +697,15 @@ def _parse_csv_filter(value: Optional[str]) -> List[str]:
         for item in value.split(",")
         if item.strip()
     ]
+
+
+def _dedupe_preserve_order(items: List[str]) -> List[str]:
+    return list(dict.fromkeys(items or []))
+
+
+def _sort_pos_by_id_order(pos: List[Dict], id_order: List[str]) -> List[Dict]:
+    po_by_id = {po.get("id"): po for po in pos}
+    return [po_by_id[po_id] for po_id in id_order if po_id in po_by_id]
 
 
 def _is_pending_status(value: Optional[str]) -> bool:
@@ -798,12 +838,26 @@ def get_pos(
     include_line_items_only: bool = Query(default=False),
 ):
     current_user = _current_user(authorization)
-    pos = _load_pos()
-    pos = [po for po in pos if _can_access_po(po, current_user)]
+    scoped_po_ids = _dedupe_preserve_order(pinned_po_list or [])
+    if scoped_po_ids:
+        accessible_ids = query_accessible_po_header_ids(
+            role=current_user.get("role", ""),
+            user_id=current_user.get("id", ""),
+            supplier_msid=current_user.get("supplier_msid"),
+            supplier_number=current_user.get("supplier_number"),
+            user_email=current_user.get("email"),
+            po_ids=scoped_po_ids,
+        )
+        accessible_set = set(accessible_ids)
+        scoped_po_ids = [po_id for po_id in scoped_po_ids if po_id in accessible_set]
+        pos = _load_pos_by_ids(scoped_po_ids)
+    else:
+        pos = _load_pos()
+        pos = [po for po in pos if _can_access_po(po, current_user)]
     
-    # filter if pinnedPos not empty
-    if pinned_po_list and len(pinned_po_list) > 0:
-        pos = [p for p in pos if p["id"] in pinned_po_list]
+    # Preserve pinned ID order after access filtering.
+    if scoped_po_ids:
+        pos = _sort_pos_by_id_order(pos, scoped_po_ids)
     if status:
         pos = [p for p in pos if p["status"] == status]
 
@@ -997,28 +1051,47 @@ def get_pinned_pos(
     if current_user.get("role") != "ADMIN" and current_user.get("id") != user_id:
         raise HTTPException(status_code=403, detail="Forbidden to access pinned PO list")
 
-    pos = _load_pos()
-    pos = [po for po in pos if _can_access_po(po, current_user)]
-
     session = SessionLocal()
     try:
         user = session.get(User, user_id)
     finally:
         session.close()
 
-    pinned_po_ids = list(user.pinned_rows or []) if user else []
+    pinned_po_ids = _dedupe_preserve_order(list(user.pinned_rows or []) if user else [])
 
-    pos = [p for p in pos if p["id"] in pinned_po_ids]
-    enrich_buyer_details(pos)
-    total = len(pos)
+    if not pinned_po_ids:
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total": 0,
+            "data": [],
+        }
 
     start = (page - 1) * page_size
     end = start + page_size
+
+    accessible_ids = query_accessible_po_header_ids(
+        role=current_user.get("role", ""),
+        user_id=current_user.get("id", ""),
+        supplier_msid=current_user.get("supplier_msid"),
+        supplier_number=current_user.get("supplier_number"),
+        user_email=current_user.get("email"),
+        po_ids=pinned_po_ids,
+    )
+    accessible_set = set(accessible_ids)
+    ordered_accessible_ids = [po_id for po_id in pinned_po_ids if po_id in accessible_set]
+    total = len(ordered_accessible_ids)
+
+    paged_ids = ordered_accessible_ids[start:end]
+    pos = _load_pos_by_ids(paged_ids)
+    pos = _sort_pos_by_id_order(pos, paged_ids)
+    enrich_buyer_details(pos)
+
     return {
         "page": page,
         "page_size": page_size,
         "total": total,
-        "data": pos[start:end],
+        "data": pos,
     }
 
 @router.get("/config/sites")
