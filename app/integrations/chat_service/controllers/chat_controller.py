@@ -61,7 +61,14 @@ def _build_bootstrap_item(chat: dict, current_email: str, chat_service: ChatServ
 
 @router.post("/", status_code=201, description="Start a chat thread")
 async def start_chat_thread(payload: StartChatThread):
-    chat_service = ChatService()
+    try:
+        chat_service = ChatService()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Azure Communication configuration error: {exc}",
+        ) from exc
+
     participant_key = sorted([payload.from_email, payload.to_email])
 
     existing_chat = chat_collection.find_one(
@@ -103,24 +110,41 @@ async def start_chat_thread(payload: StartChatThread):
 
     logging.info("Creating a new ACS-backed chat thread for PO %s", payload.po_number)
 
-    starter_user = chat_service.identity_client.create_user()
-    remote_user = chat_service.identity_client.create_user()
+    try:
+        starter_user = chat_service.identity_client.create_user()
+        remote_user = chat_service.identity_client.create_user()
 
-    starter_token = chat_service.create_token(starter_user).token
-    remote_token = chat_service.create_token(remote_user).token
+        starter_token = chat_service.create_token(starter_user).token
+        remote_token = chat_service.create_token(remote_user).token
+    except Exception as exc:
+        logging.exception("ACS user/token creation failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "Failed to create Azure Communication user/token. "
+                f"Check ACS endpoint/access key. Provider error: {exc}"
+            ),
+        ) from exc
 
     starter_acs_user_id = _extract_acs_user_id(starter_user)
     remote_acs_user_id = _extract_acs_user_id(remote_user)
 
     topic = payload.po_number or "Test Thread"
 
-    chat_thread_client, _ = chat_service.create_chat_thread(
-        starter_acs_user_id=starter_acs_user_id,
-        topic=topic,
-        starter_display_name=payload.from_name,
-        participant_acs_ids=[remote_acs_user_id],
-        participant_display_names={remote_acs_user_id: payload.to_name},
-    )
+    try:
+        chat_thread_client, _ = chat_service.create_chat_thread(
+            starter_acs_user_id=starter_acs_user_id,
+            topic=topic,
+            starter_display_name=payload.from_name,
+            participant_acs_ids=[remote_acs_user_id],
+            participant_display_names={remote_acs_user_id: payload.to_name},
+        )
+    except Exception as exc:
+        logging.exception("ACS chat thread creation failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to create Azure Communication chat thread. Provider error: {exc}",
+        ) from exc
 
     new_chat = {
         "id": str(uuid.uuid4()),
