@@ -9,10 +9,10 @@ from contextlib import contextmanager
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
 from sqlalchemy import and_, create_engine, func, or_, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 
 from app.db.models import (
     ChatMessage,
@@ -1545,6 +1545,220 @@ def get_all_pos(
             result.append(po_dict)
 
         return result
+
+
+def get_filtered_pos(
+    *,
+    role: str,
+    user_id: str,
+    supplier_msid: Optional[Any] = None,
+    supplier_number: Optional[Any] = None,
+    email: str = "",
+    status: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    supplier_email: Optional[str] = None,
+    site: Optional[str] = None,
+    po_number: Optional[str] = None,
+    supplier_name: Optional[str] = None,
+    procurement_specialist_id: Optional[str] = None,
+    total_value_from: Optional[float] = None,
+    total_value_to: Optional[float] = None,
+    delivery_date_from: Optional[str] = None,
+    delivery_date_to: Optional[str] = None,
+    source_system: Optional[str] = None,
+    items_from: Optional[int] = None,
+    items_to: Optional[int] = None,
+    mrp_exceptions: Optional[str] = None,
+    search: Optional[str] = None,
+    po_ids: Optional[List[str]] = None,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+    page: int = 1,
+    page_size: int = 50,
+    skip_pagination: bool = False,
+) -> Tuple[int, List[Dict[str, Any]]]:
+    """DB-level filtering, sorting, and pagination for the PO list endpoint.
+
+    Returns (total_po_count, list_of_po_dicts).
+    When skip_pagination=True all matching POs are returned regardless of page/page_size.
+    """
+    with _session_scope() as session:
+        # Explicit outer joins; noload prevents double-join from lazy="joined" relationships.
+        q = (
+            session.query(PurchaseOrderLine)
+            .options(
+                noload(PurchaseOrderLine.supplier),
+                noload(PurchaseOrderLine.location),
+                noload(PurchaseOrderLine.item),
+            )
+            .join(SupplierMaster, PurchaseOrderLine.local_supplier_id == SupplierMaster.msid, isouter=True)
+            .join(LocationMaster, PurchaseOrderLine.location_id == LocationMaster.location_id, isouter=True)
+            .join(ItemMaster, PurchaseOrderLine.item_no == ItemMaster.item_no, isouter=True)
+        )
+
+        # --- Role-based access ---
+        if role == "PROCUREMENT_SPECIALIST":
+            q = q.filter(PurchaseOrderLine.procurement_specialist_id == str(user_id or ""))
+        elif role == "SUPPLIER":
+            supplier_filters = []
+            msid_int = _safe_int(supplier_msid)
+            snum_int = _safe_int(supplier_number)
+            ids = {v for v in [msid_int, snum_int] if v is not None}
+            if ids:
+                supplier_filters.append(PurchaseOrderLine.local_supplier_id.in_(ids))
+            norm_email = _safe_str(email)
+            if norm_email:
+                supplier_filters.append(func.lower(PurchaseOrderLine.supplier_email) == norm_email.lower())
+            if not supplier_filters:
+                return 0, []
+            q = q.filter(or_(*supplier_filters))
+        elif role == "ADMIN":
+            pass
+        else:
+            return 0, []
+
+        # Explicit PO ID scope (e.g. pinned list)
+        if po_ids:
+            q = q.filter(PurchaseOrderLine.po_header_id.in_(po_ids))
+
+        # --- Column-level filters ---
+        if status:
+            q = q.filter(PurchaseOrderLine.po_status == status)
+        if supplier_id:
+            sid = _safe_int(supplier_id)
+            if sid is not None:
+                q = q.filter(PurchaseOrderLine.local_supplier_id == sid)
+        if supplier_email:
+            q = q.filter(func.lower(PurchaseOrderLine.supplier_email) == supplier_email.lower())
+        if site:
+            sites = [s.strip() for s in site.split(",") if s.strip()]
+            if sites:
+                q = q.filter(LocationMaster.location_name.in_(sites))
+        if po_number:
+            q = q.filter(func.lower(PurchaseOrderLine.po_no).like(f"%{po_number.lower()}%"))
+        if supplier_name:
+            q = q.filter(SupplierMaster.supplier_name.ilike(f"%{supplier_name}%"))
+        if procurement_specialist_id:
+            q = q.filter(PurchaseOrderLine.procurement_specialist_id == procurement_specialist_id)
+        if source_system:
+            q = q.filter(func.lower(PurchaseOrderLine.source_erp) == source_system.lower())
+        if delivery_date_from:
+            q = q.filter(PurchaseOrderLine.latest_promise_date >= date.fromisoformat(delivery_date_from))
+        if delivery_date_to:
+            q = q.filter(PurchaseOrderLine.latest_promise_date <= date.fromisoformat(delivery_date_to))
+        if mrp_exceptions == "Yes":
+            q = q.filter(
+                PurchaseOrderLine.except_message.isnot(None),
+                func.upper(PurchaseOrderLine.except_message) != "NONE",
+            )
+        elif mrp_exceptions == "No":
+            q = q.filter(
+                or_(
+                    PurchaseOrderLine.except_message.is_(None),
+                    func.upper(PurchaseOrderLine.except_message) == "NONE",
+                )
+            )
+        if search:
+            pat = f"%{search.lower()}%"
+            q = q.filter(
+                or_(
+                    func.lower(PurchaseOrderLine.po_no).like(pat),
+                    func.lower(SupplierMaster.supplier_name).like(pat),
+                    func.lower(PurchaseOrderLine.supplier_email).like(pat),
+                    func.lower(PurchaseOrderLine.source_erp).like(pat),
+                    func.lower(LocationMaster.location_name).like(pat),
+                    func.lower(PurchaseOrderLine.po_status).like(pat),
+                    func.lower(PurchaseOrderLine.item_description).like(pat),
+                    func.lower(ItemMaster.material_code).like(pat),
+                )
+            )
+
+        # --- Aggregate expressions ---
+        total_val_expr = func.sum(
+            func.coalesce(PurchaseOrderLine.updated_quantity, PurchaseOrderLine.quantity_ordered)
+            * func.coalesce(PurchaseOrderLine.updated_unit_price, PurchaseOrderLine.unit_cost)
+        )
+        line_count_expr = func.count(PurchaseOrderLine.po_id)
+
+        # Sort expression map (MIN/aggregate over each po_header_id group)
+        _SORT_MAP: Dict[str, Any] = {
+            "status": func.min(PurchaseOrderLine.po_status),
+            "po_number": func.min(PurchaseOrderLine.po_no),
+            "delivery_date": func.min(PurchaseOrderLine.latest_promise_date),
+            "source_system": func.min(PurchaseOrderLine.source_erp),
+            "supplier_id": func.min(PurchaseOrderLine.local_supplier_id),
+            "supplier_name": func.min(SupplierMaster.supplier_name),
+            "site": func.min(LocationMaster.location_name),
+            "created_date": func.min(PurchaseOrderLine.po_issue_date),
+            "mrp_need_by_date": func.min(PurchaseOrderLine.mrp_need_by_date),
+            "period_date": func.min(PurchaseOrderLine.period_date),
+            "mrp_exceptions": func.min(PurchaseOrderLine.except_message),
+            "purchasing_group": func.min(PurchaseOrderLine.purchasing_group),
+            "total_value": total_val_expr,
+        }
+        sort_expr = _SORT_MAP.get(sort_by) if sort_by else None
+
+        # --- Header subquery: one row per distinct po_header_id ---
+        header_q = (
+            q.with_entities(PurchaseOrderLine.po_header_id.label("po_header_id"))
+            .group_by(PurchaseOrderLine.po_header_id)
+        )
+
+        # HAVING for aggregate range filters
+        if total_value_from is not None:
+            header_q = header_q.having(total_val_expr >= total_value_from)
+        if total_value_to is not None:
+            header_q = header_q.having(total_val_expr <= total_value_to)
+        if items_from is not None:
+            header_q = header_q.having(line_count_expr >= items_from)
+        if items_to is not None:
+            header_q = header_q.having(line_count_expr <= items_to)
+
+        # Total count (wrap grouped query in subquery so COUNT counts groups)
+        count_subq = header_q.subquery()
+        total = session.query(func.count()).select_from(count_subq).scalar() or 0
+        if total == 0:
+            return 0, []
+
+        # Ordering
+        if sort_expr is not None:
+            order_clause = sort_expr.desc() if sort_order == "desc" else sort_expr.asc()
+        else:
+            order_clause = func.min(PurchaseOrderLine.po_no).asc()
+        header_q = header_q.order_by(order_clause)
+
+        # Pagination
+        if skip_pagination:
+            paginated = header_q.all()
+        else:
+            offset = (page - 1) * page_size
+            paginated = header_q.offset(offset).limit(page_size).all()
+
+        if not paginated:
+            return total, []
+
+        po_header_ids = [row.po_header_id for row in paginated]
+
+        # Fetch full line data; lazy="joined" loads supplier/location/item relations.
+        rows = (
+            session.query(PurchaseOrderLine)
+            .filter(PurchaseOrderLine.po_header_id.in_(po_header_ids))
+            .order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no)
+            .all()
+        )
+
+        grouped: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            if row.po_header_id not in grouped:
+                grouped[row.po_header_id] = _build_po_payload(row)
+            grouped[row.po_header_id]["line_items"].append(_serialize_po_line(row))
+
+        for po in grouped.values():
+            po["total_value"] = round(
+                sum(line.get("net_value", 0) for line in po.get("line_items", [])), 2
+            )
+
+        return total, [grouped[hid] for hid in po_header_ids if hid in grouped]
 
 
 def query_relational_purchase_orders(po_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:

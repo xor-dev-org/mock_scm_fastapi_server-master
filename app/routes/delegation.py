@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime, date
+from sqlalchemy import select
 import uuid
 
 from app.db.models import Delegation
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 
 router = APIRouter(prefix="/delegation", tags=["Delegations"])
 
@@ -47,7 +48,7 @@ def _serialize_delegation(row: Delegation) -> dict:
     }
 
 @router.get("")
-def get_delegations(
+async def get_delegations(
     page: int = 1,
     page_size: int = 50,
     status: str = None,
@@ -55,16 +56,14 @@ def get_delegations(
     sort_by: str = None
 ):
     """Get list of delegations with filters and pagination"""
-    session = SessionLocal()
-    try:
-        delegations = [_serialize_delegation(row) for row in session.query(Delegation).all()]
-    finally:
-        session.close()
-    
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Delegation))
+        delegations = [_serialize_delegation(row) for row in result.scalars().all()]
+
     # Status filter
     if status:
         delegations = [d for d in delegations if d["status"] == status]
-    
+
     # Search filter (by PO number or PS name)
     if search:
         search_lower = search.lower()
@@ -73,7 +72,7 @@ def get_delegations(
             if search_lower in d.get("po_number", "").lower()
             or search_lower in d.get("delegated_to_name", "").lower()
         ]
-    
+
     # Sorting
     if sort_by == "date_asc":
         delegations = sorted(delegations, key=lambda x: x.get("start_date", ""))
@@ -82,11 +81,11 @@ def get_delegations(
     else:
         # Default: latest first
         delegations = sorted(delegations, key=lambda x: x.get("created_date", ""), reverse=True)
-    
+
     total = len(delegations)
     start = (page - 1) * page_size
     end = start + page_size
-    
+
     return {
         "page": page,
         "page_size": page_size,
@@ -95,23 +94,18 @@ def get_delegations(
     }
 
 @router.get("/{delegation_id}")
-def get_delegation(delegation_id: str):
+async def get_delegation(delegation_id: str):
     """Get a specific delegation by ID"""
-    session = SessionLocal()
-    try:
-        row = session.get(Delegation, delegation_id)
-    finally:
-        session.close()
+    async with AsyncSessionLocal() as session:
+        row = await session.get(Delegation, delegation_id)
 
-    delegation = _serialize_delegation(row) if row else None
-    
-    if not delegation:
+    if not row:
         raise HTTPException(status_code=404, detail="Delegation not found")
-    
-    return delegation
+
+    return _serialize_delegation(row)
 
 @router.post("")
-def create_delegation(delegation_data: dict):
+async def create_delegation(delegation_data: dict):
     """Create a new delegation"""
     row = Delegation(
         id=f"DEL-{str(uuid.uuid4()).split('-')[0].upper()}",
@@ -128,36 +122,29 @@ def create_delegation(delegation_data: dict):
         created_date=datetime.now(),
     )
 
-    session = SessionLocal()
-    try:
+    async with AsyncSessionLocal() as session:
         session.add(row)
-        session.commit()
-        session.refresh(row)
+        await session.commit()
+        await session.refresh(row)
         return _serialize_delegation(row)
-    finally:
-        session.close()
 
 @router.delete("/{delegation_id}")
-def delete_delegation(delegation_id: str):
+async def delete_delegation(delegation_id: str):
     """Delete a delegation"""
-    session = SessionLocal()
-    try:
-        row = session.get(Delegation, delegation_id)
+    async with AsyncSessionLocal() as session:
+        row = await session.get(Delegation, delegation_id)
         if not row:
             raise HTTPException(status_code=404, detail="Delegation not found")
-        session.delete(row)
-        session.commit()
-    finally:
-        session.close()
+        await session.delete(row)
+        await session.commit()
 
     return {"message": "Delegation removed successfully"}
 
 @router.put("/{delegation_id}")
-def update_delegation(delegation_id: str, updated_data: dict):
+async def update_delegation(delegation_id: str, updated_data: dict):
     """Update a delegation"""
-    session = SessionLocal()
-    try:
-        row = session.get(Delegation, delegation_id)
+    async with AsyncSessionLocal() as session:
+        row = await session.get(Delegation, delegation_id)
         if not row:
             raise HTTPException(status_code=404, detail="Delegation not found")
 
@@ -172,8 +159,6 @@ def update_delegation(delegation_id: str, updated_data: dict):
                 setattr(row, key, value)
 
         session.add(row)
-        session.commit()
-        session.refresh(row)
+        await session.commit()
+        await session.refresh(row)
         return _serialize_delegation(row)
-    finally:
-        session.close()

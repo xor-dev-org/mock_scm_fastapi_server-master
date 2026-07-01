@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from app.utils.auth import create_token
 import uuid
 
 from app.db.models import User
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 
 from app.utils.postgres_db import (
     cleanup_and_reseed_data,
@@ -57,18 +58,15 @@ def reseed_data():
         raise HTTPException(status_code=500, detail=f"Failed to reseed data: {exc}") from exc
 
 @router.post("/msal/login")
-def msal_login(request: MsalLoginRequest):
-    session = SessionLocal()
-    try:
-        user = session.query(User).filter(User.email == request.email).first()
-    finally:
-        session.close()
+async def msal_login(request: MsalLoginRequest):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.email == request.email))
+        user = result.scalar_one_or_none()
 
     if not user or user.role not in ["ADMIN", "PROCUREMENT_SPECIALIST"]:
         raise HTTPException(status_code=401, detail="Invalid user")
 
     payload = _serialize_user(user)
-
     token = create_token(payload)
 
     return {
@@ -79,10 +77,10 @@ def msal_login(request: MsalLoginRequest):
     }
 
 @router.post("/supplier/signup")
-def supplier_signup(request: SupplierSignupRequest):
-    session = SessionLocal()
-    try:
-        existing = session.query(User).filter(User.email == request.email).first()
+async def supplier_signup(request: SupplierSignupRequest):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.email == request.email))
+        existing = result.scalar_one_or_none()
         if existing:
             raise HTTPException(status_code=400, detail="Supplier already exists")
 
@@ -101,33 +99,26 @@ def supplier_signup(request: SupplierSignupRequest):
         )
 
         session.add(user)
-        session.commit()
-        session.refresh(user)
+        await session.commit()
+        await session.refresh(user)
         return _serialize_user(user)
-    finally:
-        session.close()
 
 @router.post("/supplier/login")
-def supplier_login(request: SupplierLoginRequest):
-    session = SessionLocal()
-    try:
-        supplier = (
-            session.query(User)
-            .filter(
+async def supplier_login(request: SupplierLoginRequest):
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
                 User.email == request.email,
                 User.password == request.password,
                 User.role == "SUPPLIER",
             )
-            .first()
         )
-    finally:
-        session.close()
+        supplier = result.scalar_one_or_none()
 
     if not supplier:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     payload = _serialize_user(supplier)
-
     token = create_token(payload)
 
     return {

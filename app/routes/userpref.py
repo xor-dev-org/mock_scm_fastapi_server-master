@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Dict, List
 
 from app.db.models import User
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 
 router = APIRouter(prefix="/user-pref", tags=["User Preference"])
 
@@ -55,15 +55,12 @@ class UpdateLinePinnedRowsRequest(BaseModel):
     line_pinned_rows: List[str]
 
 
-def _find_user_or_404(user_id: str) -> User:
-    session = SessionLocal()
-    try:
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
-    finally:
-        session.close()
+async def _find_user_or_404(user_id: str) -> User:
+    async with AsyncSessionLocal() as session:
+        user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 def _get_pin_metadata_key(pin_type: str) -> str | None:
@@ -117,12 +114,12 @@ def _set_pinned_rows_for_user(user: User, pin_type: str, pinned_rows: List[str])
 
 
 @router.get("/pinned-rows")
-def get_pinned_rows(
+async def get_pinned_rows(
     user_id: str,
     pin_type: str = Query("po", description="Pin type: po, po_to_review, mrp_exception, po_details_lines, po_details_documents"),
 )-> PinnedRowsResponse:
     _get_pin_field(pin_type)
-    user = _find_user_or_404(user_id)
+    user = await _find_user_or_404(user_id)
 
     return PinnedRowsResponse(
         user_id=user_id,
@@ -132,7 +129,7 @@ def get_pinned_rows(
 
 
 @router.get("/pinned-rows/batch")
-def get_pinned_rows_batch(
+async def get_pinned_rows_batch(
     user_id: str,
     pin_types: List[str] = Query(
         ["po", "po_to_review", "mrp_exception"],
@@ -147,7 +144,7 @@ def get_pinned_rows_batch(
             normalized_types.append(pin_type)
             seen_types.add(pin_type)
 
-    user = _find_user_or_404(user_id)
+    user = await _find_user_or_404(user_id)
 
     return BatchPinnedRowsResponse(
         user_id=user_id,
@@ -159,20 +156,17 @@ def get_pinned_rows_batch(
 
 
 @router.put("/pinned-rows")
-def update_pinned_rows(req: UpdatePinnedRowsRequest):
+async def update_pinned_rows(req: UpdatePinnedRowsRequest):
     _get_pin_field(req.pin_type)
-
-    session = SessionLocal()
     normalized_rows = _normalize_pinned_rows(req.pinned_rows)
-    try:
-        user = session.get(User, req.user_id)
+
+    async with AsyncSessionLocal() as session:
+        user = await session.get(User, req.user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         _set_pinned_rows_for_user(user, req.pin_type, normalized_rows)
         session.add(user)
-        session.commit()
-    finally:
-        session.close()
+        await session.commit()
 
     return {
         "message": "Pinned rows updated successfully",
@@ -183,8 +177,8 @@ def update_pinned_rows(req: UpdatePinnedRowsRequest):
 
 
 @router.get("/line-pinned-rows")
-def get_line_pinned_rows(user_id: str):
-    user = _find_user_or_404(user_id)
+async def get_line_pinned_rows(user_id: str):
+    user = await _find_user_or_404(user_id)
     return {
         "user_id": user_id,
         "line_pinned_rows": list(user.line_pinned_rows or []),
@@ -192,17 +186,14 @@ def get_line_pinned_rows(user_id: str):
 
 
 @router.put("/line-pinned-rows")
-def update_line_pinned_rows(req: UpdateLinePinnedRowsRequest):
-    session = SessionLocal()
-    try:
-        user = session.get(User, req.user_id)
+async def update_line_pinned_rows(req: UpdateLinePinnedRowsRequest):
+    async with AsyncSessionLocal() as session:
+        user = await session.get(User, req.user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         user.line_pinned_rows = list(req.line_pinned_rows)
         session.add(user)
-        session.commit()
-    finally:
-        session.close()
+        await session.commit()
 
     return {
         "message": "Line pinned rows updated successfully",
@@ -211,11 +202,11 @@ def update_line_pinned_rows(req: UpdateLinePinnedRowsRequest):
     }
 
 @router.get("/grid-column-visibility")
-def get_grid_column_visibility(user_id: str, grid_key: str):
+async def get_grid_column_visibility(user_id: str, grid_key: str):
     if not grid_key.strip():
         raise HTTPException(status_code=400, detail="grid_key is required")
 
-    user = _find_user_or_404(user_id)
+    user = await _find_user_or_404(user_id)
 
     metadata = dict(user.metadata_json or {})
     grid_visibility_map = dict(metadata.get("grid_column_visibility") or {})
@@ -228,13 +219,12 @@ def get_grid_column_visibility(user_id: str, grid_key: str):
 
 
 @router.put("/grid-column-visibility")
-def update_grid_column_visibility(req: UpdateGridColumnVisibilityRequest):
+async def update_grid_column_visibility(req: UpdateGridColumnVisibilityRequest):
     if not req.grid_key.strip():
         raise HTTPException(status_code=400, detail="grid_key is required")
 
-    session = SessionLocal()
-    try:
-        user = session.get(User, req.user_id)
+    async with AsyncSessionLocal() as session:
+        user = await session.get(User, req.user_id)
 
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -248,7 +238,7 @@ def update_grid_column_visibility(req: UpdateGridColumnVisibilityRequest):
         user.metadata_json = metadata
 
         session.add(user)
-        session.commit()
+        await session.commit()
 
         return {
             "message": "Grid column visibility updated successfully",
@@ -256,5 +246,3 @@ def update_grid_column_visibility(req: UpdateGridColumnVisibilityRequest):
             "grid_key": req.grid_key,
             "column_visibility_model": req.column_visibility_model,
         }
-    finally:
-        session.close()
