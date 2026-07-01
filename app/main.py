@@ -4,6 +4,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import logging
+# Silences the HTTP policy logger generating your exact log lines
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+
+# Optional: Mute all other Azure Communication Service internal logs
+logging.getLogger("azure.communication").setLevel(logging.WARNING)
+
 from fastapi import FastAPI
 from app.integrations.chat_service.controllers import (
     chat_controller as integration_chat_controller,
@@ -13,7 +20,6 @@ from app.integrations.chat_service.controllers import (
 # from app.integrations.chat_service.database.db import client
 
 from fastapi.middleware.cors import CORSMiddleware
-import logging
 from app.routes import auth, po, supplier, admin, delegation, userpref, chat, ai_controller
 from app.utils.postgres_db import initialize_database
 
