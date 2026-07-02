@@ -1276,7 +1276,7 @@ def seed_relational_data(force_reset: bool = False) -> None:
 
 def seed_mrp_and_exceptions() -> Dict[str, Any]:
     """
-    Two-phase seed operation:
+    Three-phase seed operation:
 
     Phase 1 — redistribute mrp_need_by_date and latest_promise_date (non-null rows,
       relative to 2026-07-02). Both columns are always set to the same date:
@@ -1289,12 +1289,17 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
       1% → CANCEL
       SHORTAGE rows also get updated_quantity = quantity_ordered + choice([2,3,5])
       and updated_net_value recalculated accordingly.
+
+    Phase 3 — set updated_delivery_date for RESCHEDULE IN / RESCHEDULE OUT rows
+      based on mrp_need_by_date (falling back to latest_promise_date):
+      RESCHEDULE OUT → updated_delivery_date = base_date + choice([3,4,5]) days
+      RESCHEDULE IN  → updated_delivery_date = base_date - choice([3,4,5]) days
     """
     import random
-    from datetime import date
+    from datetime import date, timedelta
 
     with _session_scope() as session:
-        # ── Phase 1: redistribute mrp_need_by_date ──────────────────────────
+        # ── Phase 1: redistribute mrp_need_by_date and latest_promise_date ──
         date_rows: List[PurchaseOrderLine] = (
             session.query(PurchaseOrderLine)
             .filter(PurchaseOrderLine.mrp_need_by_date.isnot(None))
@@ -1374,6 +1379,38 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
             len(shortage_rows), len(cancel_rows),
         )
 
+        # ── Phase 3: updated_delivery_date for RESCHEDULE IN / OUT rows ─────
+        reschedule_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(
+                or_(
+                    PurchaseOrderLine.except_message.ilike("RESCHEDULE OUT"),
+                    PurchaseOrderLine.except_message.ilike("RESCHEDULE IN"),
+                )
+            )
+            .all()
+        )
+        reschedule_out_count = 0
+        reschedule_in_count = 0
+
+        for row in reschedule_rows:
+            base_date = row.mrp_need_by_date or row.latest_promise_date
+            if not base_date:
+                continue
+            day_delta = timedelta(days=random.choice([3, 4, 5]))
+            if row.except_message.upper() == "RESCHEDULE OUT":
+                row.updated_delivery_date = base_date + day_delta
+                reschedule_out_count += 1
+            else:
+                row.updated_delivery_date = base_date - day_delta
+                reschedule_in_count += 1
+
+        session.flush()
+        logger.info(
+            "seed_mrp_and_exceptions: phase3 done — reschedule_out=%d reschedule_in=%d",
+            reschedule_out_count, reschedule_in_count,
+        )
+
     logger.info("seed_mrp_and_exceptions: all changes committed")
     return {
         "status": "Success",
@@ -1387,6 +1424,10 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
             "total_eligible": total_eligible,
             "shortage_updated": len(shortage_rows),
             "cancel_updated": len(cancel_rows),
+        },
+        "reschedule": {
+            "reschedule_out_updated": reschedule_out_count,
+            "reschedule_in_updated": reschedule_in_count,
         },
     }
 
