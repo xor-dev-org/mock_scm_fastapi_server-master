@@ -1278,7 +1278,8 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
     """
     Two-phase seed operation:
 
-    Phase 1 — redistribute mrp_need_by_date (non-null rows, relative to 2026-07-02):
+    Phase 1 — redistribute mrp_need_by_date and latest_promise_date (non-null rows,
+      relative to 2026-07-02). Both columns are always set to the same date:
       25% → random date in June 2026
       25% → random date in July 2026
       50% → random date in August 2026
@@ -1308,11 +1309,13 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
 
         for i, row in enumerate(date_rows):
             if i < q1:
-                row.mrp_need_by_date = date(2026, 6, random.randint(1, 30))
+                d = date(2026, 6, random.randint(1, 30))
             elif i < q2:
-                row.mrp_need_by_date = date(2026, 7, random.randint(1, 31))
+                d = date(2026, 7, random.randint(1, 31))
             else:
-                row.mrp_need_by_date = date(2026, 8, random.randint(1, 31))
+                d = date(2026, 8, random.randint(1, 31))
+            row.mrp_need_by_date = d
+            row.latest_promise_date = d
 
         session.flush()
         logger.info(
