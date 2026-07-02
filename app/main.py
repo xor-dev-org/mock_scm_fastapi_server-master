@@ -11,7 +11,7 @@ logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(l
 # Optional: Mute all other Azure Communication Service internal logs
 logging.getLogger("azure.communication").setLevel(logging.WARNING)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from app.integrations.chat_service.controllers import (
     chat_controller as integration_chat_controller,
     procurement_specialist_controller,
@@ -21,7 +21,7 @@ from app.integrations.chat_service.controllers import (
 
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, po, supplier, admin, delegation, userpref, chat, ai_controller
-from app.utils.postgres_db import initialize_database
+from app.utils.postgres_db import initialize_database, seed_mrp_and_exceptions
 
 
 app = FastAPI(
@@ -60,6 +60,14 @@ def seed_db():
     logging.info(f"Database seeding completed successfully!")
 
     return {"status": "Success"}
+
+@app.get("/seed/mrp-dates")
+def seed_mrp_dates():
+    try:
+        return seed_mrp_and_exceptions()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to seed MRP dates: {exc}") from exc
+
 
 @app.get("/health")
 def health():

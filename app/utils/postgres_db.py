@@ -58,7 +58,6 @@ MRP_RECOMMENDATION_BY_EXCEPTION = {
     "CANCEL": "CANCEL",
     "SHORTAGE": "QTY CHANGE",
     "DELAY_RISK": "MOVE IN",
-    "PRICE_ALERT": "REVIEW PRICE",
 }
 SEED_BUSINESS_LOCATIONS = [
     ("Houston", "TX", "77032", "US"),
@@ -381,7 +380,7 @@ def _enrich_line_item(
 
     recommendation = _safe_str(enriched.get("recommendation"))
     if not recommendation and exception_message:
-        recommendation = MRP_RECOMMENDATION_BY_EXCEPTION.get(exception_message.upper(), "REVIEW")
+        recommendation = MRP_RECOMMENDATION_BY_EXCEPTION.get(exception_message.upper(), "")
 
     enriched.update(
         {
@@ -688,13 +687,21 @@ def _ensure_database_exists() -> None:
         server_url = DATABASE_URL.rsplit("/", 1)[0] + "/postgres"
         server_engine = create_engine(server_url, isolation_level="AUTOCOMMIT")
         with server_engine.connect() as conn:
-            result = conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :name"), {"name": db_name})
-            if not result.fetchone():
-                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
-                logger.info("Created PostgreSQL database '%s'", db_name)
+            # Terminate all active connections to the target DB before dropping.
+            conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = :name AND pid <> pg_backend_pid()"
+                ),
+                {"name": db_name},
+            )
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+            logger.info("Dropped PostgreSQL database '%s'", db_name)
+            conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+            logger.info("Created PostgreSQL database '%s'", db_name)
         server_engine.dispose()
     except Exception as exc:
-        logger.warning("Could not ensure database exists: %s", exc)
+        logger.warning("Could not recreate database: %s", exc)
 
 
 def regenerate_purchase_orders_json_from_xlsx() -> None:
@@ -1267,6 +1274,120 @@ def seed_relational_data(force_reset: bool = False) -> None:
         _seed_chat_tables(session)
 
 
+def seed_mrp_and_exceptions() -> Dict[str, Any]:
+    """
+    Two-phase seed operation:
+
+    Phase 1 — redistribute mrp_need_by_date (non-null rows, relative to 2026-07-02):
+      25% → random date in June 2026
+      25% → random date in July 2026
+      50% → random date in August 2026
+
+    Phase 2 — assign except_message to rows that currently have null/empty value:
+      1% → SHORTAGE  (only where quantity_ordered > 0)
+      1% → CANCEL
+      SHORTAGE rows also get updated_quantity = quantity_ordered + choice([2,3,5])
+      and updated_net_value recalculated accordingly.
+    """
+    import random
+    from datetime import date
+
+    with _session_scope() as session:
+        # ── Phase 1: redistribute mrp_need_by_date ──────────────────────────
+        date_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(PurchaseOrderLine.mrp_need_by_date.isnot(None))
+            .all()
+        )
+        total_dates = len(date_rows)
+        logger.info("seed_mrp_and_exceptions: phase1 — %d rows with mrp_need_by_date", total_dates)
+
+        random.shuffle(date_rows)
+        q1 = total_dates // 4
+        q2 = q1 + total_dates // 4
+
+        for i, row in enumerate(date_rows):
+            if i < q1:
+                row.mrp_need_by_date = date(2026, 6, random.randint(1, 30))
+            elif i < q2:
+                row.mrp_need_by_date = date(2026, 7, random.randint(1, 31))
+            else:
+                row.mrp_need_by_date = date(2026, 8, random.randint(1, 31))
+
+        session.flush()
+        logger.info(
+            "seed_mrp_and_exceptions: phase1 done — june=%d july=%d august=%d",
+            q1, q2 - q1, total_dates - q2,
+        )
+
+        # ── Phase 2: assign SHORTAGE / CANCEL ───────────────────────────────
+        exc_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(
+                or_(
+                    PurchaseOrderLine.except_message.is_(None),
+                    PurchaseOrderLine.except_message == "",
+                )
+            )
+            .all()
+        )
+        total_eligible = len(exc_rows)
+        logger.info(
+            "seed_mrp_and_exceptions: phase2 — %d rows with null/empty except_message",
+            total_eligible,
+        )
+
+        n_shortage = max(1, total_eligible // 100)
+        n_cancel   = max(1, total_eligible // 100)
+
+        random.shuffle(exc_rows)
+
+        shortage_rows: List[PurchaseOrderLine] = []
+        remaining: List[PurchaseOrderLine] = []
+        for row in exc_rows:
+            if len(shortage_rows) < n_shortage and (row.quantity_ordered or 0) > 0:
+                shortage_rows.append(row)
+            else:
+                remaining.append(row)
+
+        cancel_rows = remaining[:n_cancel]
+
+        for row in shortage_rows:
+            row.except_message = "SHORTAGE"
+            delta = random.choice([2, 3, 5])
+            new_qty = float(row.quantity_ordered or 0) + delta
+            row.updated_quantity = new_qty
+            unit_price = float(
+                row.updated_unit_price if row.updated_unit_price is not None else (row.unit_cost or 0.0)
+            )
+            row.updated_net_value = round(new_qty * unit_price, 2)
+
+        for row in cancel_rows:
+            row.except_message = "CANCEL"
+
+        session.flush()
+        logger.info(
+            "seed_mrp_and_exceptions: phase2 done — shortage=%d cancel=%d",
+            len(shortage_rows), len(cancel_rows),
+        )
+
+    logger.info("seed_mrp_and_exceptions: all changes committed")
+    return {
+        "status": "Success",
+        "mrp_dates": {
+            "total_updated": total_dates,
+            "last_month_june_2026": q1,
+            "this_month_july_2026": q2 - q1,
+            "next_month_august_2026": total_dates - q2,
+        },
+        "exceptions": {
+            "total_eligible": total_eligible,
+            "shortage_updated": len(shortage_rows),
+            "cancel_updated": len(cancel_rows),
+        },
+    }
+
+
 def cleanup_and_reseed_data() -> Dict[str, Any]:
     _hydrate_runtime_from_canonical_if_needed()
     seed_relational_data(force_reset=True)
@@ -1373,7 +1494,7 @@ def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
     line_number = _safe_str(line.poline_no) or ""
     exception_message = _safe_str(line.except_message)
     has_mrp_exception = bool(exception_message and exception_message.upper() != "NONE")
-    recommendation = MRP_RECOMMENDATION_BY_EXCEPTION.get(exception_message.upper(), "REVIEW") if has_mrp_exception else ""
+    recommendation = MRP_RECOMMENDATION_BY_EXCEPTION.get(exception_message.upper(), "") if has_mrp_exception else ""
     supplier_confirmation_date = line.po_line_ack_date or line.erp_extract_date or line.po_line_issue_date
     return {
         "id": str(line.po_id),
@@ -1918,10 +2039,20 @@ def _hydrate_runtime_from_canonical_if_needed() -> None:
 
 def initialize_database() -> None:
     from app.db import models as _models  # noqa: F401
+    from app.db.session import async_engine
 
     regenerate_purchase_orders_json_from_xlsx()
     _hydrate_runtime_from_canonical_if_needed()
+
+    # Drop and recreate the database.
     _ensure_database_exists()
+
+    # Dispose both pool after the DB was dropped so the next checkout
+    # connects to the freshly created (empty) database.
+    engine.dispose()
+    async_engine.sync_engine.dispose()
+
+    # Create schema and populate from JSON seed files.
     Base.metadata.create_all(bind=engine)
     seed_relational_data(force_reset=False)
 
