@@ -1435,6 +1435,7 @@ def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
 
 def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
     supplier_name = first_line.supplier.supplier_name if first_line.supplier else None
+    supplier_address = first_line.supplier.address if first_line.supplier else None
     site_name = first_line.location.location_name if first_line.location else None
     created_date = (
         first_line.po_issue_date
@@ -1462,6 +1463,7 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
         "supplier_id": str(first_line.local_supplier_id),
         "supplier_name": supplier_name,
         "supplier_email": first_line.supplier_email,
+        "supplier_address": supplier_address,
         "site": site_name,
         "status": first_line.po_status,
         "source_system": first_line.source_erp,
@@ -1477,6 +1479,8 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
         "period_date": first_line.period_date.isoformat() if first_line.period_date else None,
         "purchasing_group": first_line.purchasing_group,
         "mrp_exceptions": first_line.except_message,
+        "incoterm": first_line.incoterm,
+        "incoterm_named_place": first_line.incoterm_named_place,
         "line_items": [],
         "status_history": [],
         "workflow_stage": "PO_DETAILS",
