@@ -61,7 +61,7 @@ def seed_db():
 
     return {"status": "Success"}
 
-@app.get("/seed/mrp-dates")
+@app.get("/calibrate")
 def seed_mrp_dates():
     try:
         return seed_mrp_and_exceptions()
