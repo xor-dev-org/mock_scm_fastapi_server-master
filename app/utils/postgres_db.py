@@ -1276,7 +1276,7 @@ def seed_relational_data(force_reset: bool = False) -> None:
 
 def seed_mrp_and_exceptions() -> Dict[str, Any]:
     """
-    Three-phase seed operation:
+    Four-phase seed operation:
 
     Phase 1 — redistribute mrp_need_by_date and latest_promise_date (non-null rows,
       relative to 2026-07-02). Both columns are always set to the same date:
@@ -1294,6 +1294,9 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
       based on mrp_need_by_date (falling back to latest_promise_date):
       RESCHEDULE OUT → updated_delivery_date = base_date + choice([3,4,5]) days
       RESCHEDULE IN  → updated_delivery_date = base_date - choice([3,4,5]) days
+
+    Phase 4 — set line_status = 'PENDING ACKNOWLEDGEMENT' for all rows that
+      have a non-null updated_delivery_date.
     """
     import random
     from datetime import date, timedelta
@@ -1411,6 +1414,22 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
             reschedule_out_count, reschedule_in_count,
         )
 
+        # ── Phase 4: mark line_status = PENDING ACKNOWLEDGEMENT for rows ────
+        #             that have an updated_delivery_date set
+        pending_ack_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(PurchaseOrderLine.updated_delivery_date.isnot(None))
+            .all()
+        )
+        for row in pending_ack_rows:
+            row.line_status = "PENDING ACKNOWLEDGEMENT"
+
+        session.flush()
+        logger.info(
+            "seed_mrp_and_exceptions: phase4 done — pending_acknowledgement=%d",
+            len(pending_ack_rows),
+        )
+
     logger.info("seed_mrp_and_exceptions: all changes committed")
     return {
         "status": "Success",
@@ -1428,6 +1447,149 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
         "reschedule": {
             "reschedule_out_updated": reschedule_out_count,
             "reschedule_in_updated": reschedule_in_count,
+        },
+        "pending_acknowledgement_updated": len(pending_ack_rows),
+    }
+
+
+_TARGETED_PO_NUMBERS = [
+    "4500446282", "4500463721", "4500463725", "4500463726",
+    "4500463734", "4500463748", "4500481853", "4500483571",
+    "4500533247", "4500533790", "4500541168", "4500541169",
+    "4500541223", "4500564761", "4500569702", "4500572694",
+]
+
+
+def seed_targeted_po_exceptions() -> Dict[str, Any]:
+    """
+    Assigns except_message uniformly across RESCHEDULE OUT, RESCHEDULE IN, and
+    SHORTAGE for the POs in _TARGETED_PO_NUMBERS. Rows whose po_status is
+    CANCELED are skipped entirely.
+
+    Split is at the PO level (all lines of a PO get the same exception):
+      ~1/3 of POs → RESCHEDULE OUT
+      ~1/3 of POs → RESCHEDULE IN
+      remaining   → SHORTAGE
+
+    RESCHEDULE OUT / IN:
+      - mrp_need_by_date and latest_promise_date are set to a random date
+        (uses the existing value if already set, otherwise generates July/Aug 2026)
+      - updated_delivery_date = base_date + choice([3,4,5]) days for OUT
+      - updated_delivery_date = base_date - choice([3,4,5]) days for IN
+      - line_status set to PENDING ACKNOWLEDGEMENT
+
+    SHORTAGE (only lines where quantity_ordered > 0):
+      - updated_quantity = quantity_ordered + choice([2,3,5])
+      - updated_net_value recalculated from updated_quantity × unit_price
+    """
+    import random
+    from collections import defaultdict
+    from datetime import date, timedelta
+
+    with _session_scope() as session:
+        all_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(
+                PurchaseOrderLine.po_no.in_(_TARGETED_PO_NUMBERS),
+                func.upper(PurchaseOrderLine.po_status) != "CANCELED",
+            )
+            .all()
+        )
+
+        # Group lines by PO number so the split is at the PO level.
+        po_groups: Dict[str, List[PurchaseOrderLine]] = defaultdict(list)
+        for row in all_rows:
+            if row.po_no:
+                po_groups[row.po_no].append(row)
+
+        eligible_po_nos = list(po_groups.keys())
+        logger.info(
+            "seed_targeted_po_exceptions: %d eligible POs out of %d requested",
+            len(eligible_po_nos), len(_TARGETED_PO_NUMBERS),
+        )
+
+        random.shuffle(eligible_po_nos)
+
+        n = len(eligible_po_nos)
+        n_out = n // 3
+        n_in  = n // 3
+        # remainder goes to SHORTAGE
+
+        reschedule_out_pos = eligible_po_nos[:n_out]
+        reschedule_in_pos  = eligible_po_nos[n_out:n_out + n_in]
+        shortage_pos       = eligible_po_nos[n_out + n_in:]
+
+        logger.info(
+            "seed_targeted_po_exceptions: split — reschedule_out=%d reschedule_in=%d shortage=%d",
+            len(reschedule_out_pos), len(reschedule_in_pos), len(shortage_pos),
+        )
+
+        reschedule_out_lines = 0
+        reschedule_in_lines  = 0
+        shortage_lines       = 0
+
+        def _base_date_for(row: PurchaseOrderLine) -> date:
+            if row.mrp_need_by_date:
+                return row.mrp_need_by_date
+            if row.latest_promise_date:
+                return row.latest_promise_date
+            # Fallback: random date in July or August 2026.
+            month = random.choice([7, 8])
+            return date(2026, month, random.randint(1, 28))
+
+        for po_no in reschedule_out_pos:
+            for row in po_groups[po_no]:
+                row.except_message = "RESCHEDULE OUT"
+                base = _base_date_for(row)
+                row.mrp_need_by_date    = base
+                row.latest_promise_date = base
+                row.updated_delivery_date = base + timedelta(days=random.choice([3, 4, 5]))
+                row.line_status = "PENDING ACKNOWLEDGEMENT"
+                reschedule_out_lines += 1
+
+        for po_no in reschedule_in_pos:
+            for row in po_groups[po_no]:
+                row.except_message = "RESCHEDULE IN"
+                base = _base_date_for(row)
+                row.mrp_need_by_date    = base
+                row.latest_promise_date = base
+                row.updated_delivery_date = base - timedelta(days=random.choice([3, 4, 5]))
+                row.line_status = "PENDING ACKNOWLEDGEMENT"
+                reschedule_in_lines += 1
+
+        for po_no in shortage_pos:
+            for row in po_groups[po_no]:
+                if (row.quantity_ordered or 0) > 0:
+                    row.except_message = "SHORTAGE"
+                    delta   = random.choice([2, 3, 5])
+                    new_qty = float(row.quantity_ordered) + delta
+                    row.updated_quantity = new_qty
+                    unit_price = float(
+                        row.updated_unit_price if row.updated_unit_price is not None
+                        else (row.unit_cost or 0.0)
+                    )
+                    row.updated_net_value = round(new_qty * unit_price, 2)
+                    shortage_lines += 1
+
+        session.flush()
+        logger.info(
+            "seed_targeted_po_exceptions: done — reschedule_out_lines=%d reschedule_in_lines=%d shortage_lines=%d",
+            reschedule_out_lines, reschedule_in_lines, shortage_lines,
+        )
+
+    return {
+        "status": "Success",
+        "reschedule_out": {
+            "po_count": len(reschedule_out_pos),
+            "line_count": reschedule_out_lines,
+        },
+        "reschedule_in": {
+            "po_count": len(reschedule_in_pos),
+            "line_count": reschedule_in_lines,
+        },
+        "shortage": {
+            "po_count": len(shortage_pos),
+            "line_count": shortage_lines,
         },
     }
 
