@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
-from sqlalchemy import and_, create_engine, func, or_, text
+from sqlalchemy import and_, create_engine, func, or_, text, nullslast
 from sqlalchemy.orm import Session, noload
 
 from app.db.models import (
@@ -2049,6 +2049,7 @@ def get_filtered_pos(
             "source_system": func.min(PurchaseOrderLine.source_erp),
             "supplier_id": func.min(PurchaseOrderLine.local_supplier_id),
             "supplier_name": func.min(SupplierMaster.supplier_name),
+            "supplier_email": func.min(PurchaseOrderLine.supplier_email),
             "site": func.min(LocationMaster.location_name),
             "created_date": func.min(PurchaseOrderLine.po_issue_date),
             "mrp_need_by_date": func.min(PurchaseOrderLine.mrp_need_by_date),
@@ -2056,6 +2057,13 @@ def get_filtered_pos(
             "mrp_exceptions": func.min(PurchaseOrderLine.except_message),
             "purchasing_group": func.min(PurchaseOrderLine.purchasing_group),
             "total_value": total_val_expr,
+
+            # Frontend/computed PO-level columns
+            # line_items is an array on frontend, but sortable as line count in SQL.
+            "line_items": line_count_expr,
+
+            # revision_changes is PO-level in frontend, but derived from line revision numbers.
+            "revision_changes": func.max(PurchaseOrderLine.po_line_revision_no),
         }
         sort_expr = _SORT_MAP.get(sort_by) if sort_by else None
 
@@ -2083,9 +2091,11 @@ def get_filtered_pos(
 
         # Ordering
         if sort_expr is not None:
-            order_clause = sort_expr.desc() if sort_order == "desc" else sort_expr.asc()
+            direction_expr = sort_expr.desc() if sort_order == "desc" else sort_expr.asc()
+            order_clause = nullslast(direction_expr)
         else:
             order_clause = func.min(PurchaseOrderLine.po_no).asc()
+
         header_q = header_q.order_by(order_clause)
 
         # Pagination
@@ -2115,8 +2125,18 @@ def get_filtered_pos(
             grouped[row.po_header_id]["line_items"].append(_serialize_po_line(row))
 
         for po in grouped.values():
+            line_items = po.get("line_items", [])
+
             po["total_value"] = round(
-                sum(line.get("net_value", 0) for line in po.get("line_items", [])), 2
+                sum(line.get("net_value", 0) for line in line_items), 2
+            )
+
+            po["revision_changes"] = max(
+                [
+                    int(line.get("po_line_revision_no") or 0)
+                    for line in line_items
+                ],
+                default=0,
             )
 
         return total, [grouped[hid] for hid in po_header_ids if hid in grouped]
@@ -2142,6 +2162,230 @@ def query_relational_purchase_orders(po_ids: Optional[List[str]] = None) -> List
             po["total_value"] = round(sum(line.get("net_value", 0) for line in po.get("line_items", [])), 2)
 
         return list(grouped.values())
+
+
+def query_purchase_order_list(
+    *,
+    role: str,
+    user_id: str,
+    supplier_msid: Optional[Any] = None,
+    supplier_number: Optional[Any] = None,
+    user_email: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    status: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    supplier_email: Optional[str] = None,
+    site: Optional[str] = None,
+    procurement_specialist_id: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+    search: Optional[str] = None,
+    po_number: Optional[str] = None,
+    supplier_name: Optional[str] = None,
+    total_value_from: Optional[float] = None,
+    total_value_to: Optional[float] = None,
+    delivery_date_from: Optional[date] = None,
+    delivery_date_to: Optional[date] = None,
+    source_system: Optional[str] = None,
+    items_from: Optional[int] = None,
+    items_to: Optional[int] = None,
+    mrp_exceptions: Optional[str] = None,
+    revision_changes: Optional[int] = None,
+) -> Dict[str, Any]:
+    page = max(_safe_int(page) or 1, 1)
+    page_size = max(_safe_int(page_size) or 50, 1)
+    search_lower = _safe_str(search)
+    search_lower = search_lower.lower().strip() if search_lower else None
+    search_pattern = f"%{search_lower}%" if search_lower else None
+    selected_sites = [site_item.strip() for site_item in (site or "").split(",") if site_item.strip()]
+    normalized_source_system = _safe_str(source_system)
+    normalized_supplier_email = _safe_str(supplier_email)
+    normalized_supplier_name = _safe_str(supplier_name)
+    normalized_po_number = _safe_str(po_number)
+    normalized_procurement_specialist_id = _safe_str(procurement_specialist_id)
+    normalized_supplier_id = _safe_int(supplier_id)
+    normalized_total_value_from = _safe_float(total_value_from)
+    normalized_total_value_to = _safe_float(total_value_to)
+    normalized_items_from = _safe_int(items_from)
+    normalized_items_to = _safe_int(items_to)
+    normalized_revision_changes = _safe_int(revision_changes)
+    normalized_delivery_date_from = _safe_date(delivery_date_from)
+    normalized_delivery_date_to = _safe_date(delivery_date_to)
+    normalized_status = _safe_str(status)
+    normalized_mrp_exceptions = _safe_str(mrp_exceptions)
+    normalized_user_email = _safe_str(user_email)
+
+    with _session_scope() as session:
+        line_value = func.coalesce(PurchaseOrderLine.updated_quantity, PurchaseOrderLine.quantity_ordered) * func.coalesce(
+            PurchaseOrderLine.updated_unit_price, PurchaseOrderLine.unit_cost
+        )
+        total_value_expr = cast(func.sum(line_value), Numeric(18, 2))
+
+        search_line = aliased(PurchaseOrderLine)
+
+        base_query = (
+            session.query(
+                PurchaseOrderLine.po_header_id.label("po_header_id"),
+                func.max(PurchaseOrderLine.po_no).label("po_number"),
+                func.max(PurchaseOrderLine.local_supplier_id).label("supplier_msid"),
+                cast(func.max(PurchaseOrderLine.local_supplier_id), SAString).label("supplier_id"),
+                func.max(SupplierMaster.supplier_name).label("supplier_name"),
+                func.max(PurchaseOrderLine.supplier_email).label("supplier_email"),
+                func.max(LocationMaster.location_name).label("site"),
+                func.max(PurchaseOrderLine.po_status).label("status"),
+                func.max(PurchaseOrderLine.source_erp).label("source_system"),
+                func.max(PurchaseOrderLine.latest_promise_date).label("delivery_date"),
+                func.max(PurchaseOrderLine.procurement_specialist_id).label("procurement_specialist_id"),
+                func.max(User.name).label("buyer_name"),
+                func.max(User.email).label("buyer_email"),
+                func.max(User.phone).label("buyer_phone"),
+                func.max(PurchaseOrderLine.except_message).label("mrp_exceptions"),
+                func.count(PurchaseOrderLine.po_id).label("item_count"),
+                total_value_expr.label("total_value"),
+                literal(0).label("revision_changes"),
+            )
+            .join(SupplierMaster, PurchaseOrderLine.local_supplier_id == SupplierMaster.msid)
+            .join(LocationMaster, PurchaseOrderLine.location_id == LocationMaster.location_id)
+            .outerjoin(User, User.id == PurchaseOrderLine.procurement_specialist_id)
+        )
+
+        if normalized_status:
+            base_query = base_query.filter(PurchaseOrderLine.po_status == normalized_status)
+
+        if normalized_supplier_id is not None:
+            base_query = base_query.filter(PurchaseOrderLine.local_supplier_id == normalized_supplier_id)
+
+        if normalized_supplier_email:
+            base_query = base_query.filter(func.lower(PurchaseOrderLine.supplier_email) == normalized_supplier_email.lower())
+
+        if selected_sites:
+            base_query = base_query.filter(LocationMaster.location_name.in_(selected_sites))
+
+        if normalized_procurement_specialist_id:
+            base_query = base_query.filter(PurchaseOrderLine.procurement_specialist_id == normalized_procurement_specialist_id)
+
+        if normalized_po_number:
+            base_query = base_query.filter(PurchaseOrderLine.po_no.ilike(f"%{normalized_po_number}%"))
+
+        if normalized_supplier_name:
+            base_query = base_query.filter(SupplierMaster.supplier_name.ilike(f"%{normalized_supplier_name}%"))
+
+        if normalized_source_system:
+            base_query = base_query.filter(func.lower(PurchaseOrderLine.source_erp) == normalized_source_system.lower())
+
+        if normalized_revision_changes is not None:
+            base_query = base_query.filter(literal(0) == normalized_revision_changes)
+
+        if normalized_delivery_date_from is not None:
+            base_query = base_query.filter(PurchaseOrderLine.latest_promise_date >= normalized_delivery_date_from)
+
+        if normalized_delivery_date_to is not None:
+            base_query = base_query.filter(PurchaseOrderLine.latest_promise_date <= normalized_delivery_date_to)
+
+        if role == "ADMIN":
+            pass
+        elif role == "PROCUREMENT_SPECIALIST":
+            base_query = base_query.filter(PurchaseOrderLine.procurement_specialist_id == str(user_id or ""))
+        elif role == "SUPPLIER":
+            supplier_ids: set[int] = set()
+            for value in (supplier_msid, supplier_number):
+                parsed = _safe_int(value)
+                if parsed is not None:
+                    supplier_ids.add(parsed)
+
+            supplier_filters = []
+            if supplier_ids:
+                supplier_filters.append(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
+
+            if normalized_user_email:
+                supplier_filters.append(func.lower(PurchaseOrderLine.supplier_email) == normalized_user_email.lower())
+
+            if supplier_filters:
+                base_query = base_query.filter(or_(*supplier_filters))
+            else:
+                return {"total": 0, "po_ids": []}
+        else:
+            return {"total": 0, "po_ids": []}
+
+        if search_lower:
+            search_match = (
+                session.query(search_line.po_id)
+                .filter(
+                    search_line.po_header_id == PurchaseOrderLine.po_header_id,
+                    search_line.item_no == ItemMaster.item_no,
+                    or_(
+                        func.lower(func.coalesce(search_line.po_no, "")).like(search_pattern),
+                        func.lower(func.coalesce(SupplierMaster.supplier_name, "")).like(search_pattern),
+                        func.lower(func.coalesce(search_line.supplier_email, "")).like(search_pattern),
+                        func.lower(func.cast(search_line.local_supplier_id, SAString)).like(search_pattern),
+                        func.lower(func.coalesce(LocationMaster.location_name, "")).like(search_pattern),
+                        func.lower(func.coalesce(search_line.po_status, "")).like(search_pattern),
+                        func.lower(func.coalesce(search_line.source_erp, "")).like(search_pattern),
+                        func.lower(func.coalesce(User.name, "")).like(search_pattern),
+                        func.lower(func.coalesce(User.email, "")).like(search_pattern),
+                        func.lower(func.coalesce(ItemMaster.material_code, search_line.item_no)).like(search_pattern),
+                        func.lower(func.coalesce(search_line.item_description, "")).like(search_pattern),
+                    ),
+                )
+                .join(SupplierMaster, search_line.local_supplier_id == SupplierMaster.msid)
+                .join(LocationMaster, search_line.location_id == LocationMaster.location_id)
+                .outerjoin(User, User.id == search_line.procurement_specialist_id)
+                .outerjoin(ItemMaster, search_line.item_no == ItemMaster.item_no)
+                .exists()
+            )
+            base_query = base_query.filter(search_match)
+
+        if normalized_mrp_exceptions:
+            normalized_exception_flag = normalized_mrp_exceptions.upper()
+            if normalized_exception_flag == "YES":
+                base_query = base_query.filter(func.coalesce(func.upper(PurchaseOrderLine.except_message), "NONE") != "NONE")
+            elif normalized_exception_flag == "NO":
+                base_query = base_query.filter(func.coalesce(func.upper(PurchaseOrderLine.except_message), "NONE") == "NONE")
+
+        base_query = base_query.group_by(PurchaseOrderLine.po_header_id)
+
+        if normalized_items_from is not None:
+            base_query = base_query.having(func.count(PurchaseOrderLine.po_id) >= normalized_items_from)
+
+        if normalized_items_to is not None:
+            base_query = base_query.having(func.count(PurchaseOrderLine.po_id) <= normalized_items_to)
+
+        if normalized_total_value_from is not None:
+            base_query = base_query.having(total_value_expr >= normalized_total_value_from)
+
+        if normalized_total_value_to is not None:
+            base_query = base_query.having(total_value_expr <= normalized_total_value_to)
+
+        sort_columns = {
+            "po_number": func.max(PurchaseOrderLine.po_no),
+            "supplier_name": func.max(SupplierMaster.supplier_name),
+            "supplier_email": func.max(PurchaseOrderLine.supplier_email),
+            "supplier_id": cast(func.max(PurchaseOrderLine.local_supplier_id), SAString),
+            "site": func.max(LocationMaster.location_name),
+            "status": func.max(PurchaseOrderLine.po_status),
+            "source_system": func.max(PurchaseOrderLine.source_erp),
+            "buyer_name": func.max(User.name),
+            "buyer_email": func.max(User.email),
+            "delivery_date": func.max(PurchaseOrderLine.latest_promise_date),
+            "total_value": total_value_expr,
+            "revision_changes": literal(0),
+            "procurement_specialist_id": func.max(PurchaseOrderLine.procurement_specialist_id),
+        }
+
+        sort_column = sort_columns.get(sort_by or "", PurchaseOrderLine.po_header_id)
+        if str(sort_order).lower() == "desc":
+            base_query = base_query.order_by(sort_column.desc())
+        else:
+            base_query = base_query.order_by(sort_column.asc())
+
+        total = session.query(func.count()).select_from(base_query.order_by(None).subquery()).scalar() or 0
+        page_rows = base_query.offset((page - 1) * page_size).limit(page_size).all()
+
+        return {
+            "total": total,
+            "po_ids": [row.po_header_id for row in page_rows],
+        }
 
 
 def query_accessible_po_header_ids(
