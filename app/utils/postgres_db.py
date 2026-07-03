@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
-from sqlalchemy import and_, create_engine, func, or_, text
+from sqlalchemy import and_, create_engine, func, or_, text, nullslast
 from sqlalchemy.orm import Session, noload
 
 from app.db.models import (
@@ -2019,6 +2019,7 @@ def get_filtered_pos(
             "source_system": func.min(PurchaseOrderLine.source_erp),
             "supplier_id": func.min(PurchaseOrderLine.local_supplier_id),
             "supplier_name": func.min(SupplierMaster.supplier_name),
+            "supplier_email": func.min(PurchaseOrderLine.supplier_email),
             "site": func.min(LocationMaster.location_name),
             "created_date": func.min(PurchaseOrderLine.po_issue_date),
             "mrp_need_by_date": func.min(PurchaseOrderLine.mrp_need_by_date),
@@ -2026,6 +2027,13 @@ def get_filtered_pos(
             "mrp_exceptions": func.min(PurchaseOrderLine.except_message),
             "purchasing_group": func.min(PurchaseOrderLine.purchasing_group),
             "total_value": total_val_expr,
+
+            # Frontend/computed PO-level columns
+            # line_items is an array on frontend, but sortable as line count in SQL.
+            "line_items": line_count_expr,
+
+            # revision_changes is PO-level in frontend, but derived from line revision numbers.
+            "revision_changes": func.max(PurchaseOrderLine.po_line_revision_no),
         }
         sort_expr = _SORT_MAP.get(sort_by) if sort_by else None
 
@@ -2053,9 +2061,11 @@ def get_filtered_pos(
 
         # Ordering
         if sort_expr is not None:
-            order_clause = sort_expr.desc() if sort_order == "desc" else sort_expr.asc()
+            direction_expr = sort_expr.desc() if sort_order == "desc" else sort_expr.asc()
+            order_clause = nullslast(direction_expr)
         else:
             order_clause = func.min(PurchaseOrderLine.po_no).asc()
+
         header_q = header_q.order_by(order_clause)
 
         # Pagination
@@ -2085,8 +2095,18 @@ def get_filtered_pos(
             grouped[row.po_header_id]["line_items"].append(_serialize_po_line(row))
 
         for po in grouped.values():
+            line_items = po.get("line_items", [])
+
             po["total_value"] = round(
-                sum(line.get("net_value", 0) for line in po.get("line_items", [])), 2
+                sum(line.get("net_value", 0) for line in line_items), 2
+            )
+
+            po["revision_changes"] = max(
+                [
+                    int(line.get("po_line_revision_no") or 0)
+                    for line in line_items
+                ],
+                default=0,
             )
 
         return total, [grouped[hid] for hid in po_header_ids if hid in grouped]
