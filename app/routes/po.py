@@ -25,6 +25,7 @@ from app.utils.postgres_db import (
     find_relational_purchase_order,
     get_filtered_pos,
     query_accessible_po_header_ids,
+    query_purchase_order_list,
     query_relational_purchase_orders,
     replace_relational_purchase_order,
 )
@@ -707,7 +708,7 @@ def _flatten_po_line_items(pos: List[Dict], tab_mode: Optional[str]) -> List[Dic
     use_line_item_status = tab_mode in {"exceptions_alerts", "action_required"}
 
     for po in pos:
-        for item in po.get("line_items", []):
+        for schedule_index, item in enumerate(po.get("line_items", []), start=1):
             except_message = item.get("except_message")
             if tab_mode == "mrp_exception" and not (
                 except_message or item.get("mrp_action_required")
@@ -762,6 +763,7 @@ def _flatten_po_line_items(pos: List[Dict], tab_mode: Optional[str]) -> List[Dic
                     "mrp_exceptions": po.get("mrp_exceptions"),
                     "delivery_date": po.get("delivery_date"),
                     "currency": po.get("currency"),
+                    "schedule_line": schedule_index,
                     "line_id": line_id,
                     **item,
                 }
@@ -789,6 +791,47 @@ def _line_row_matches_search(row: Dict, search_lower: str) -> bool:
             row.get("line_status", ""),
             row.get("po_line_ack_status", ""),
         ]
+    )
+
+def _is_empty_sort_value(value) -> bool:
+    return value is None or value == "" or str(value).strip() == "--"
+
+
+def _parse_sort_value(value):
+    if _is_empty_sort_value(value):
+        return ""
+
+    # Numeric sort
+    try:
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        value_text = str(value).strip().replace(",", "")
+
+        if value_text.replace(".", "", 1).isdigit():
+            return float(value_text)
+    except Exception:
+        pass
+
+    # Date sort
+    try:
+        return datetime.strptime(str(value).strip(), "%Y-%m-%d")
+    except Exception:
+        pass
+
+    # String sort
+    return str(value).strip().lower()
+
+
+def _line_sort_key(row: Dict, sort_by: str):
+    value = row.get(sort_by)
+
+    # Put empty / -- / None values at bottom
+    is_empty = _is_empty_sort_value(value)
+
+    return (
+        1 if is_empty else 0,
+        _parse_sort_value(value),
     )
 
 @router.get("")
@@ -884,8 +927,31 @@ async def get_pos(
 
         if sort_by is not None:
             t5 = time.perf_counter()
-            line_rows = sorted(line_rows, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
-            logger.info(f"get_pos: [line_items_mode] sort by '{sort_by}' done in {time.perf_counter() - t5:.3f}s")
+
+            reverse_sort = sort_order == "desc"
+
+            non_empty_rows = [
+            row for row in line_rows
+            if not _is_empty_sort_value(row.get(sort_by))
+            ]
+
+            empty_rows = [
+            row for row in line_rows
+            if _is_empty_sort_value(row.get(sort_by))
+            ]
+
+            non_empty_rows = sorted(
+                non_empty_rows,
+                key=lambda row: _parse_sort_value(row.get(sort_by)),
+                reverse=reverse_sort,
+            )
+
+            # Always keep empty / -- values at bottom for both asc and desc
+            line_rows = non_empty_rows + empty_rows
+
+            logger.info(
+                f"get_pos: [line_items_mode] sort by '{sort_by}' done in {time.perf_counter() - t5:.3f}s"
+            )
 
         total = len(line_rows)
         start = (page - 1) * page_size
@@ -991,6 +1057,8 @@ async def get_pinned_pos(
 @router.get("/config/sites")
 async def get_available_sites(authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
+    role = current_user.get("role")
+    logger.info(f"config/sites: role={role}")
 
     logger.info("config/sites: Building query for available sites")
     stmt = (
