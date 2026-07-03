@@ -38,6 +38,7 @@ PS_ACTIONS = [
     "MOVE_OUT",
     "SPLIT",
     "HOLD",
+    "UNHOLD",
     "REJECT",
     "ACCEPT",
     "ACKNOWLEDGE",
@@ -60,6 +61,7 @@ ACTION_STATUS_TRANSITIONS = {
     "MOVE_OUT": "IN_PROGRESS",
     "SPLIT": "IN_PROGRESS",
     "HOLD": "IN_PROGRESS",
+    "UNHOLD": "IN_PROGRESS",
     "REJECT": "CANCELLED",
     "ACCEPT": "APPROVED",
     "ACKNOWLEDGE": "ACKNOWLEDGED",
@@ -516,7 +518,10 @@ def _apply_action_to_po(
     updated_po["last_modified_date"] = timestamp
     updated_po.setdefault("status_history", []).append(history_record)
 
-    line_item["line_status"] = action.replace("_", " ")
+    if action == "UNHOLD":
+        line_item["line_status"] = "IN_PROGRESS"
+    else:
+        line_item["line_status"] = action.replace("_", " ")
     line_item.setdefault("history", []).append(history_record)
 
     return updated_po
