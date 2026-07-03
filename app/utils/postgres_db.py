@@ -1487,6 +1487,7 @@ def seed_targeted_po_exceptions() -> Dict[str, Any]:
     from datetime import date, timedelta
 
     with _session_scope() as session:
+        # Primary: find rows whose po_no matches the targeted list.
         all_rows: List[PurchaseOrderLine] = (
             session.query(PurchaseOrderLine)
             .filter(
@@ -1496,15 +1497,39 @@ def seed_targeted_po_exceptions() -> Dict[str, Any]:
             .all()
         )
 
-        # Group lines by PO number so the split is at the PO level.
+        # Group by po_header_id (always present) so we can split at the PO level.
         po_groups: Dict[str, List[PurchaseOrderLine]] = defaultdict(list)
         for row in all_rows:
-            if row.po_no:
-                po_groups[row.po_no].append(row)
+            po_groups[row.po_header_id].append(row)
+
+        # Fallback: targeted po_no values not present in this environment (e.g.
+        # JSON-seeded DB where po_no is null). Select a representative set of
+        # po_header_ids from the actual data instead.
+        if not po_groups:
+            logger.warning(
+                "seed_targeted_po_exceptions: none of the %d targeted PO numbers found "
+                "(po_no is likely null in this environment); falling back to selecting "
+                "%d random POs from the database",
+                len(_TARGETED_PO_NUMBERS), len(_TARGETED_PO_NUMBERS),
+            )
+            fallback_rows: List[PurchaseOrderLine] = (
+                session.query(PurchaseOrderLine)
+                .filter(func.upper(PurchaseOrderLine.po_status) != "CANCELED")
+                .limit(500)
+                .all()
+            )
+            for row in fallback_rows:
+                po_groups[row.po_header_id].append(row)
+
+            # Keep only N distinct PO header IDs chosen at random.
+            all_header_ids = list(po_groups.keys())
+            random.shuffle(all_header_ids)
+            selected = set(all_header_ids[: len(_TARGETED_PO_NUMBERS)])
+            po_groups = {hid: rows for hid, rows in po_groups.items() if hid in selected}
 
         eligible_po_nos = list(po_groups.keys())
         logger.info(
-            "seed_targeted_po_exceptions: %d eligible POs out of %d requested",
+            "seed_targeted_po_exceptions: %d eligible POs (targeted=%d requested)",
             len(eligible_po_nos), len(_TARGETED_PO_NUMBERS),
         )
 
@@ -1537,8 +1562,8 @@ def seed_targeted_po_exceptions() -> Dict[str, Any]:
             month = random.choice([7, 8])
             return date(2026, month, random.randint(1, 28))
 
-        for po_no in reschedule_out_pos:
-            for row in po_groups[po_no]:
+        for po_id in reschedule_out_pos:
+            for row in po_groups[po_id]:
                 row.except_message = "RESCHEDULE OUT"
                 base = _base_date_for(row)
                 row.mrp_need_by_date    = base
@@ -1547,8 +1572,8 @@ def seed_targeted_po_exceptions() -> Dict[str, Any]:
                 row.line_status = "PENDING ACKNOWLEDGEMENT"
                 reschedule_out_lines += 1
 
-        for po_no in reschedule_in_pos:
-            for row in po_groups[po_no]:
+        for po_id in reschedule_in_pos:
+            for row in po_groups[po_id]:
                 row.except_message = "RESCHEDULE IN"
                 base = _base_date_for(row)
                 row.mrp_need_by_date    = base
@@ -1557,19 +1582,24 @@ def seed_targeted_po_exceptions() -> Dict[str, Any]:
                 row.line_status = "PENDING ACKNOWLEDGEMENT"
                 reschedule_in_lines += 1
 
-        for po_no in shortage_pos:
-            for row in po_groups[po_no]:
+        for po_id in shortage_pos:
+            for row in po_groups[po_id]:
+                row.except_message = "SHORTAGE"
+                shortage_lines += 1
                 if (row.quantity_ordered or 0) > 0:
-                    row.except_message = "SHORTAGE"
-                    delta   = random.choice([2, 3, 5])
-                    new_qty = float(row.quantity_ordered) + delta
-                    row.updated_quantity = new_qty
+                    delta     = random.choice([2, 3, 5])
+                    new_qty   = float(row.quantity_ordered) + delta
                     unit_price = float(
                         row.updated_unit_price if row.updated_unit_price is not None
                         else (row.unit_cost or 0.0)
                     )
+                    row.updated_quantity  = new_qty
                     row.updated_net_value = round(new_qty * unit_price, 2)
-                    shortage_lines += 1
+                    logger.debug(
+                        "seed_targeted_po_exceptions: SHORTAGE db_po_id=%s header_id=%s "
+                        "quantity_ordered=%s -> updated_quantity=%s updated_net_value=%s",
+                        row.po_id, po_id, row.quantity_ordered, row.updated_quantity, row.updated_net_value,
+                    )
 
         session.flush()
         logger.info(
