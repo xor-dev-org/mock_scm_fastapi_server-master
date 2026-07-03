@@ -38,6 +38,7 @@ myenv/
 
 # FastAPI / Uvicorn
 *.log
+*.zip
 
 # Environment variables
 .env
