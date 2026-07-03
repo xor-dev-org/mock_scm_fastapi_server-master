@@ -8,12 +8,12 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("Missing required environment variable: DATABASE_URL")
 
-POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "20"))
-MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "40"))
+POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
+MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "1800"))
 
-# Sync engine — used by postgres_db utilities and seeding.
+# Sync engine — used only by sql_agent_service and the seeding/init utilities.
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
@@ -25,7 +25,7 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Async engine — used by async route handlers.
+# Async engine — used by all route handlers.
 _ASYNC_DATABASE_URL = (
     DATABASE_URL
     .replace("postgresql+psycopg2://", "postgresql+asyncpg://")

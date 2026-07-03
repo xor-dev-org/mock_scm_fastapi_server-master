@@ -1,7 +1,10 @@
+import asyncio
+
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import select
 
 from app.db.models import User
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 from app.utils.postgres_db import (
     cleanup_and_reseed_data,
     find_relational_purchase_order,
@@ -32,20 +35,17 @@ def _serialize_user(row: User) -> dict:
     return payload
 
 @router.get("/users")
-def get_users(role: str = None):
+async def get_users(role: str = None):
     """Get list of users, optionally filtered by role"""
-    session = SessionLocal()
-    try:
-        query = session.query(User)
+    async with AsyncSessionLocal() as session:
+        stmt = select(User)
         if role:
-            query = query.filter(User.role == role)
+            stmt = stmt.where(User.role == role)
         else:
-            query = query.filter(User.role != "SUPPLIER")
-
-        rows = query.all()
-        return [_serialize_user(row) for row in rows]
-    finally:
-        session.close()
+            stmt = stmt.where(User.role != "SUPPLIER")
+        result = await session.execute(stmt)
+        rows = result.scalars().all()
+    return [_serialize_user(row) for row in rows]
 
 
 @router.get("/reseed")
@@ -57,10 +57,9 @@ def reseed_data():
         raise HTTPException(status_code=500, detail=f"Failed to reseed data: {exc}") from exc
 
 @router.put("/supplier/{supplier_id}")
-def update_supplier(supplier_id: str, supplier_data: dict):
-    session = SessionLocal()
-    try:
-        supplier = session.get(User, supplier_id)
+async def update_supplier(supplier_id: str, supplier_data: dict):
+    async with AsyncSessionLocal() as session:
+        supplier = await session.get(User, supplier_id)
         if not supplier or supplier.role != "SUPPLIER":
             raise HTTPException(status_code=404, detail="Supplier not found")
 
@@ -73,22 +72,21 @@ def update_supplier(supplier_id: str, supplier_data: dict):
                 supplier.metadata_json = metadata
 
         session.add(supplier)
-        session.commit()
-        session.refresh(supplier)
+        await session.commit()
+        await session.refresh(supplier)
         return _serialize_user(supplier)
-    finally:
-        session.close()
 
 @router.put("/po-assignment/{po_id}")
-def update_po_assignment(po_id: str, assignment_data: dict):
-    po = find_relational_purchase_order(po_id)
+async def update_po_assignment(po_id: str, assignment_data: dict):
+    po = await asyncio.to_thread(find_relational_purchase_order, po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
     po["procurement_specialist_id"] = assignment_data.get("procurement_specialist_id")
     po["supplier_id"] = assignment_data.get("supplier_id")
 
-    persisted = replace_relational_purchase_order(
+    persisted = await asyncio.to_thread(
+        replace_relational_purchase_order,
         po_id,
         {
             **po,

@@ -1,3 +1,4 @@
+import asyncio
 from copy import deepcopy
 from functools import lru_cache
 import time
@@ -13,14 +14,16 @@ from uuid import uuid4
 from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from jose import JWTError
+from sqlalchemy import select
 
 from app.db.models import PODocument, POStatusHistory, User, PurchaseOrderLine, LocationMaster
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionLocal
 from app.utils.auth import decode_token, extract_bearer_token
 from app.utils.json_db import read_json
 from app.utils.postgres_db import (
     create_relational_purchase_order,
     find_relational_purchase_order,
+    get_filtered_pos,
     query_accessible_po_header_ids,
     query_purchase_order_list,
     query_relational_purchase_orders,
@@ -146,22 +149,13 @@ def _current_user(authorization: Optional[str]) -> Dict:
     if not user_id or not role:
         raise HTTPException(status_code=401, detail="Token missing required fields")
 
-    session = SessionLocal()
-    try:
-        user = session.get(User, user_id)
-    finally:
-        session.close()
-
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
     return {
-        "id": user.id,
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
-        "supplier_number": user.supplier_number,
-        "supplier_msid": user.supplier_msid,
+        "id": user_id,
+        "name": payload.get("name", ""),
+        "email": payload.get("email", ""),
+        "role": role,
+        "supplier_number": payload.get("supplier_number"),
+        "supplier_msid": payload.get("supplier_msid"),
     }
 
 
@@ -320,21 +314,15 @@ def _normalize_po(po: Dict) -> Dict:
     return normalized
 
 
-def _load_pos() -> List[Dict]:
-    pos = query_relational_purchase_orders()
-    return [_normalize_po(po) for po in pos]
-
-
-def _load_pos_by_ids(po_ids: List[str]) -> List[Dict]:
+async def _load_pos_by_ids(po_ids: List[str]) -> List[Dict]:
     if not po_ids:
         return []
-
-    pos = query_relational_purchase_orders(po_ids=po_ids)
+    pos = await asyncio.to_thread(query_relational_purchase_orders, po_ids)
     return [_normalize_po(po) for po in pos]
 
 
-def _load_po(po_id: str) -> Optional[Dict]:
-    po = find_relational_purchase_order(po_id)
+async def _load_po(po_id: str) -> Optional[Dict]:
+    po = await asyncio.to_thread(find_relational_purchase_order, po_id)
     return _normalize_po(po) if po else None
 
 
@@ -585,9 +573,8 @@ def _serialize_history_row(history: POStatusHistory) -> Dict:
     }
 
 
-def _insert_history_row(po_id: str, history_record: Dict) -> None:
-    session = SessionLocal()
-    try:
+async def _insert_history_row(po_id: str, history_record: Dict) -> None:
+    async with AsyncSessionLocal() as session:
         row = POStatusHistory(
             po_id=po_id,
             line_item_id=history_record.get("line_item_id"),
@@ -605,61 +592,54 @@ def _insert_history_row(po_id: str, history_record: Dict) -> None:
             else None,
         )
         session.add(row)
-        session.commit()
-    finally:
-        session.close()
+        await session.commit()
 
 
-def _append_and_persist_history(po_id: str, po: Dict, history_record: Dict) -> Dict:
+async def _append_and_persist_history(po_id: str, po: Dict, history_record: Dict) -> Dict:
     updated_po = _normalize_po(po)
     updated_po.setdefault("status_history", []).append(history_record)
     updated_po["last_modified_by"] = history_record.get("actor_id") or updated_po.get("last_modified_by")
     updated_po["last_modified_date"] = history_record.get("timestamp") or _now_iso()
 
-    persisted = replace_relational_purchase_order(po_id, updated_po)
+    persisted = await asyncio.to_thread(replace_relational_purchase_order, po_id, updated_po)
     if not persisted:
         raise HTTPException(status_code=500, detail="Failed to persist PO history state")
 
-    _insert_history_row(po_id, history_record)
+    await _insert_history_row(po_id, history_record)
     return persisted
 
 
-def _list_history_for_po(po_id: str) -> List[Dict]:
-    session = SessionLocal()
-    try:
-        rows = (
-            session.query(POStatusHistory)
-            .filter(POStatusHistory.po_id == po_id)
+async def _list_history_for_po(po_id: str) -> List[Dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(POStatusHistory)
+            .where(POStatusHistory.po_id == po_id)
             .order_by(POStatusHistory.created_at.desc())
-            .all()
         )
+        rows = result.scalars().all()
         return [_serialize_history_row(row) for row in rows]
-    finally:
-        session.close()
 
 
-def _list_documents_for_po(po_id: str) -> List[Dict]:
-    session = SessionLocal()
-    try:
-        rows = session.query(PODocument).filter(PODocument.po_id == po_id).all()
+async def _list_documents_for_po(po_id: str) -> List[Dict]:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(PODocument).where(PODocument.po_id == po_id)
+        )
+        rows = result.scalars().all()
         return [_serialize_document_row(row) for row in rows]
-    finally:
-        session.close()
 
 
-def _get_document_or_404(session, po_id: str, document_id: str):
-    document = (
-        session.query(PODocument)
-        .filter(PODocument.id == document_id, PODocument.po_id == po_id)
-        .first()
+async def _get_document_or_404(session, po_id: str, document_id: str):
+    result = await session.execute(
+        select(PODocument).where(PODocument.id == document_id, PODocument.po_id == po_id)
     )
+    document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     return document
 
 
-#fuction to include Buyer details in PO
-def enrich_buyer_details(pos):
+async def enrich_buyer_details(pos):
     procurement_specialist_ids = {
         po.get("procurement_specialist_id")
         for po in pos
@@ -673,18 +653,14 @@ def enrich_buyer_details(pos):
             po["buyer_phone"] = ""
         return
 
-    session = SessionLocal()
-    try:
-        ps_rows = (
-            session.query(User)
-            .filter(
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(User).where(
                 User.role == "PROCUREMENT_SPECIALIST",
                 User.id.in_(procurement_specialist_ids),
             )
-            .all()
         )
-    finally:
-        session.close()
+        ps_rows = result.scalars().all()
 
     ps_map = {u.id: u for u in ps_rows}
 
@@ -817,7 +793,7 @@ def _line_row_matches_search(row: Dict, search_lower: str) -> bool:
     )
 
 @router.get("")
-def get_pos(
+async def get_pos(
     page: int = 1,
     page_size: int = 50,
     status: str = None,
@@ -847,213 +823,111 @@ def get_pos(
     t0 = time.perf_counter()
     current_user = _current_user(authorization)
     role = current_user.get("role")
+    user_id = current_user.get("id")
     email = current_user.get("email")
+    supplier_msid = current_user.get("supplier_msid")
+    supplier_number = current_user.get("supplier_number")
     logger.info(f"get_pos: user={email}, role={role}, include_line_items_only={include_line_items_only}")
-    logger.info(f"get_pos: _current_user (JWT decode + DB fetch) done in {time.perf_counter() - t0:.3f}s")
 
-    scoped_po_ids = _dedupe_preserve_order(pinned_po_list or [])
-
-    if scoped_po_ids:
-        logger.info(f"get_pos: [pinned] {len(scoped_po_ids)} pinned IDs, calling query_accessible_po_header_ids")
-        t1 = time.perf_counter()
-        accessible_ids = query_accessible_po_header_ids(
-            role=current_user.get("role", ""),
-            user_id=current_user.get("id", ""),
-            supplier_msid=current_user.get("supplier_msid"),
-            supplier_number=current_user.get("supplier_number"),
-            user_email=current_user.get("email"),
-            po_ids=scoped_po_ids,
-        )
-        logger.info(f"get_pos: [pinned] query_accessible_po_header_ids returned {len(accessible_ids)} IDs in {time.perf_counter() - t1:.3f}s")
-        accessible_set = set(accessible_ids)
-        scoped_po_ids = [po_id for po_id in scoped_po_ids if po_id in accessible_set]
-
-        t2 = time.perf_counter()
-        pos = _load_pos_by_ids(scoped_po_ids)
-        logger.info(f"get_pos: [pinned] _load_pos_by_ids returned {len(pos)} POs in {time.perf_counter() - t2:.3f}s")
-
-    elif not include_line_items_only:
-        logger.info(f"get_pos: [po_mode] calling query_purchase_order_list page={page} page_size={page_size}")
-        t1 = time.perf_counter()
-        po_page = query_purchase_order_list(
-            role=current_user.get("role", ""),
-            user_id=current_user.get("id", ""),
-            supplier_msid=current_user.get("supplier_msid"),
-            supplier_number=current_user.get("supplier_number"),
-            user_email=current_user.get("email"),
-            page=page,
-            page_size=page_size,
-            status=status,
-            supplier_id=supplier_id,
-            supplier_email=supplier_email,
-            site=site,
-            procurement_specialist_id=procurement_specialist_id,
-            sort_by=sort_by,
-            sort_order=sort_order,
-            search=search,
-            po_number=po_number,
-            supplier_name=supplier_name,
-            total_value_from=total_value_from,
-            total_value_to=total_value_to,
-            delivery_date_from=delivery_date_from,
-            delivery_date_to=delivery_date_to,
-            source_system=source_system,
-            items_from=items_from,
-            items_to=items_to,
-            mrp_exceptions=mrp_exceptions,
-            revision_changes=revision_changes,
-        )
-        page_po_ids = po_page.get("po_ids", [])
-        logger.info(f"get_pos: [po_mode] query_purchase_order_list returned {len(page_po_ids)} IDs (total={po_page.get('total', 0)}) in {time.perf_counter() - t1:.3f}s")
-
-        t2 = time.perf_counter()
-        pos = _load_pos_by_ids(page_po_ids) if page_po_ids else []
-        logger.info(f"get_pos: [po_mode] _load_pos_by_ids returned {len(pos)} POs in {time.perf_counter() - t2:.3f}s")
-
-        if page_po_ids:
-            pos = _sort_pos_by_id_order(pos, page_po_ids)
-        pos = [po for po in pos if _can_access_po(po, current_user)]
-
-        t3 = time.perf_counter()
-        enrich_buyer_details(pos)
-        logger.info(f"get_pos: [po_mode] enrich_buyer_details done for {len(pos)} POs in {time.perf_counter() - t3:.3f}s")
-
-        logger.info(f"get_pos: [po_mode] total elapsed {time.perf_counter() - t0:.3f}s")
-        return {
-            "page": page,
-            "page_size": page_size,
-            "total": po_page.get("total", 0),
-            "data": pos,
-        }
-
-    else:
-        logger.info("get_pos: [line_items_mode] calling _load_pos()")
-        t1 = time.perf_counter()
-        pos = _load_pos()
-        logger.info(f"get_pos: [line_items_mode] _load_pos returned {len(pos)} POs in {time.perf_counter() - t1:.3f}s")
-        pos = [po for po in pos if _can_access_po(po, current_user)]
-        logger.info(f"get_pos: [line_items_mode] access filter: {len(pos)} POs accessible")
-
-    # Python-level filters (pinned and line_items_only paths fall through here)
-    t_filter = time.perf_counter()
-    if scoped_po_ids:
-        pos = _sort_pos_by_id_order(pos, scoped_po_ids)
-    if status:
-        pos = [p for p in pos if p["status"] == status]
-    if supplier_id:
-        pos = [p for p in pos if p["supplier_id"] == supplier_id]
-    if supplier_email:
-        pos = [p for p in pos if p["supplier_email"] == supplier_email]
-    if site:
-        selected_sites = _parse_csv_filter(site)
-        if selected_sites:
-            pos = [p for p in pos if p.get("site") in selected_sites]
-    if procurement_specialist_id:
-        pos = [p for p in pos if p["procurement_specialist_id"] == procurement_specialist_id]
-    if po_number:
-        po_number_lower = po_number.lower()
-        pos = [p for p in pos if po_number_lower in p["po_number"].lower()]
-    if supplier_name:
-        supplier_name_lower = supplier_name.lower()
-        pos = [p for p in pos if supplier_name_lower in p["supplier_name"].lower()]
-    if total_value_from is not None:
-        pos = [p for p in pos if p["total_value"] >= total_value_from]
-    if total_value_to is not None:
-        pos = [p for p in pos if p["total_value"] <= total_value_to]
-    if source_system:
-        pos = [p for p in pos if p["source_system"].lower() == source_system.lower()]
-    if revision_changes is not None:
-        pos = [p for p in pos if p.get("revision_changes") == revision_changes]
-    if items_from is not None:
-        pos = [p for p in pos if len(p["line_items"]) >= items_from]
-    if items_to is not None:
-        pos = [p for p in pos if len(p["line_items"]) <= items_to]
-    if mrp_exceptions == "Yes":
-        pos = [p for p in pos if p["mrp_exceptions"] != "NONE"]
-    elif mrp_exceptions == "No":
-        pos = [p for p in pos if p["mrp_exceptions"] == "NONE"]
-    if delivery_date_from:
-        from_date = datetime.strptime(delivery_date_from, "%Y-%m-%d").date()
-        pos = [p for p in pos if datetime.strptime(p["delivery_date"], "%Y-%m-%d").date() >= from_date]
-    if delivery_date_to:
-        to_date = datetime.strptime(delivery_date_to, "%Y-%m-%d").date()
-        pos = [p for p in pos if datetime.strptime(p["delivery_date"], "%Y-%m-%d").date() <= to_date]
-    logger.info(f"get_pos: Python filters done, {len(pos)} POs remain in {time.perf_counter() - t_filter:.3f}s")
-
-    t_enrich = time.perf_counter()
-    enrich_buyer_details(pos)
-    logger.info(f"get_pos: enrich_buyer_details done for {len(pos)} POs in {time.perf_counter() - t_enrich:.3f}s")
-
-    if search:
-        t_search = time.perf_counter()
-        search_lower = search.lower().strip()
-        pos = [
-            p for p in pos
-            if (
-                search_lower in p.get("po_number", "").lower()
-                or search_lower in p.get("supplier_name", "").lower()
-                or search_lower in p.get("supplier_email", "").lower()
-                or search_lower in p.get("supplier_id", "").lower()
-                or search_lower in p.get("site", "").lower()
-                or search_lower in p.get("status", "").lower()
-                or search_lower in p.get("source_system", "").lower()
-                or search_lower in p.get("buyer_name", "").lower()
-                or search_lower in p.get("buyer_email", "").lower()
-                or any(
-                    search_lower in item.get("material_code", "").lower()
-                    or search_lower in item.get("description", "").lower()
-                    for item in p.get("line_items", [])
-                )
-            )
-        ]
-        logger.info(f"get_pos: search filter narrowed to {len(pos)} POs in {time.perf_counter() - t_search:.3f}s")
-
-    if sort_by is not None:
-        t_sort = time.perf_counter()
-        pos = sorted(pos, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
-        logger.info(f"get_pos: sort by '{sort_by}' done in {time.perf_counter() - t_sort:.3f}s")
+    _db_kwargs = dict(
+        role=role,
+        user_id=user_id,
+        supplier_msid=supplier_msid,
+        supplier_number=supplier_number,
+        email=email,
+        status=status,
+        supplier_id=supplier_id,
+        supplier_email=supplier_email,
+        site=site,
+        po_number=po_number,
+        supplier_name=supplier_name,
+        procurement_specialist_id=procurement_specialist_id,
+        total_value_from=total_value_from,
+        total_value_to=total_value_to,
+        delivery_date_from=delivery_date_from,
+        delivery_date_to=delivery_date_to,
+        source_system=source_system,
+        items_from=items_from,
+        items_to=items_to,
+        mrp_exceptions=mrp_exceptions,
+        search=search,
+    )
 
     if include_line_items_only:
+        # Fetch all matching POs without PO-level pagination, then paginate on flattened line items.
+        logger.info("get_pos: [line_items_mode] calling get_filtered_pos (skip_pagination=True)")
+        t1 = time.perf_counter()
+        _, pos = await asyncio.to_thread(
+            get_filtered_pos,
+            **_db_kwargs,
+            sort_by=None,
+            sort_order=sort_order,
+            skip_pagination=True,
+        )
+        logger.info(f"get_pos: [line_items_mode] get_filtered_pos returned {len(pos)} POs in {time.perf_counter() - t1:.3f}s")
+
+        t2 = time.perf_counter()
+        pos = [_normalize_po(po) for po in pos]
+        logger.info(f"get_pos: [line_items_mode] _normalize_po done for {len(pos)} POs in {time.perf_counter() - t2:.3f}s")
+
         allowed_tab_modes = {"ready_to_review", "mrp_exception", "exceptions_alerts", "action_required"}
         normalized_tab_mode = tab_mode if tab_mode in allowed_tab_modes else None
 
-        t_flatten = time.perf_counter()
+        t3 = time.perf_counter()
         line_rows = _flatten_po_line_items(pos, normalized_tab_mode)
-        logger.info(f"get_pos: [line_items_mode] _flatten_po_line_items produced {len(line_rows)} rows in {time.perf_counter() - t_flatten:.3f}s")
+        logger.info(f"get_pos: [line_items_mode] _flatten_po_line_items produced {len(line_rows)} rows in {time.perf_counter() - t3:.3f}s")
 
         if search:
-            t_ls = time.perf_counter()
+            t4 = time.perf_counter()
             search_lower = search.lower().strip()
             line_rows = [row for row in line_rows if _line_row_matches_search(row, search_lower)]
-            logger.info(f"get_pos: [line_items_mode] search filter narrowed to {len(line_rows)} rows in {time.perf_counter() - t_ls:.3f}s")
+            logger.info(f"get_pos: [line_items_mode] search filter narrowed to {len(line_rows)} rows in {time.perf_counter() - t4:.3f}s")
 
         if sort_by is not None:
-            t_lsort = time.perf_counter()
+            t5 = time.perf_counter()
             line_rows = sorted(line_rows, key=lambda x: x.get(sort_by, ""), reverse=sort_order == "desc")
-            logger.info(f"get_pos: [line_items_mode] sort by '{sort_by}' done in {time.perf_counter() - t_lsort:.3f}s")
+            logger.info(f"get_pos: [line_items_mode] sort by '{sort_by}' done in {time.perf_counter() - t5:.3f}s")
 
-        total_rows = len(line_rows)
+        total = len(line_rows)
         start = (page - 1) * page_size
-        logger.info(f"get_pos: [line_items_mode] returning page {page} ({page_size} of {total_rows} rows), total elapsed {time.perf_counter() - t0:.3f}s")
+        logger.info(f"get_pos: [line_items_mode] returning page {page} ({page_size} of {total} rows), total elapsed {time.perf_counter() - t0:.3f}s")
         return {
             "page": page,
             "page_size": page_size,
-            "total": total_rows,
+            "total": total,
             "data": line_rows[start:start + page_size],
         }
 
-    total = len(pos)
-    start = (page - 1) * page_size
-    logger.info(f"get_pos: returning page {page} ({page_size} of {total} POs), total elapsed {time.perf_counter() - t0:.3f}s")
+    logger.info(f"get_pos: [po_mode] calling get_filtered_pos page={page} page_size={page_size}")
+    t1 = time.perf_counter()
+    total, pos = await asyncio.to_thread(
+        get_filtered_pos,
+        **_db_kwargs,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
+    )
+    logger.info(f"get_pos: [po_mode] get_filtered_pos returned {len(pos)}/{total} POs in {time.perf_counter() - t1:.3f}s")
+
+    t2 = time.perf_counter()
+    pos = [_normalize_po(po) for po in pos]
+    logger.info(f"get_pos: [po_mode] _normalize_po done in {time.perf_counter() - t2:.3f}s")
+
+    t3 = time.perf_counter()
+    await enrich_buyer_details(pos)
+    logger.info(f"get_pos: [po_mode] enrich_buyer_details done in {time.perf_counter() - t3:.3f}s")
+
+    logger.info(f"get_pos: [po_mode] total elapsed {time.perf_counter() - t0:.3f}s, returning {len(pos)}/{total} POs")
     return {
         "page": page,
         "page_size": page_size,
         "total": total,
-        "data": pos[start:start + page_size],
+        "data": pos,
     }
 
 @router.get("/pinned_po_list")
-def get_pinned_pos(
+async def get_pinned_pos(
     page: int = 1,
     page_size: int = 10,
     user_id: str = Query(..., description="User ID to fetch pinned POs for"),
@@ -1063,104 +937,101 @@ def get_pinned_pos(
     current_user = _current_user(authorization)
     if current_user.get("role") != "ADMIN" and current_user.get("id") != user_id:
         raise HTTPException(status_code=403, detail="Forbidden to access pinned PO list")
-    logger.info(f"get_pinned_pos: user={current_user.get('email')}, user_id={user_id}")
+
+    logger.info(f"pinned_po_list: user={current_user.get('email')}, role={current_user.get('role')}")
 
     t1 = time.perf_counter()
-    session = SessionLocal()
-    try:
-        user = session.get(User, user_id)
-    finally:
-        session.close()
-    logger.info(f"get_pinned_pos: DB fetch user done in {time.perf_counter() - t1:.3f}s")
+    async with AsyncSessionLocal() as session:
+        user = await session.get(User, user_id)
+    logger.info(f"pinned_po_list: user fetch done in {time.perf_counter() - t1:.3f}s")
 
     pinned_po_ids = _dedupe_preserve_order(list(user.pinned_rows or []) if user else [])
+    logger.info(f"pinned_po_list: {len(pinned_po_ids)} unique pinned PO IDs")
+
     if not pinned_po_ids:
-        logger.info(f"get_pinned_pos: no pinned IDs, returning empty in {time.perf_counter() - t0:.3f}s")
+        logger.info("pinned_po_list: no pinned PO IDs, returning empty result")
         return {"page": page, "page_size": page_size, "total": 0, "data": []}
 
-    start = (page - 1) * page_size
-
+    # Single DB call: access control + po_ids scoping + full line data.
+    # skip_pagination=True so we can restore pinned order before paging in Python.
+    logger.info(f"pinned_po_list: calling get_filtered_pos for {len(pinned_po_ids)} pinned IDs")
     t2 = time.perf_counter()
-    accessible_ids = query_accessible_po_header_ids(
+    _, pos = await asyncio.to_thread(
+        get_filtered_pos,
         role=current_user.get("role", ""),
         user_id=current_user.get("id", ""),
         supplier_msid=current_user.get("supplier_msid"),
         supplier_number=current_user.get("supplier_number"),
-        user_email=current_user.get("email"),
+        email=current_user.get("email", ""),
         po_ids=pinned_po_ids,
+        skip_pagination=True,
     )
-    logger.info(f"get_pinned_pos: query_accessible_po_header_ids returned {len(accessible_ids)}/{len(pinned_po_ids)} IDs in {time.perf_counter() - t2:.3f}s")
+    logger.info(f"pinned_po_list: get_filtered_pos returned {len(pos)} accessible POs in {time.perf_counter() - t2:.3f}s")
 
-    accessible_set = set(accessible_ids)
-    ordered_accessible_ids = [po_id for po_id in pinned_po_ids if po_id in accessible_set]
-    total = len(ordered_accessible_ids)
-    paged_ids = ordered_accessible_ids[start:start + page_size]
-
+    # Restore pinned order (accessible POs only), then page in Python.
     t3 = time.perf_counter()
-    pos = _load_pos_by_ids(paged_ids)
-    logger.info(f"get_pinned_pos: _load_pos_by_ids returned {len(pos)} POs in {time.perf_counter() - t3:.3f}s")
+    pos = _sort_pos_by_id_order(pos, pinned_po_ids)
+    total = len(pos)
+    logger.info(f"pinned_po_list: sorted by pinned order, total accessible={total} in {time.perf_counter() - t3:.3f}s")
 
-    pos = _sort_pos_by_id_order(pos, paged_ids)
+    start = (page - 1) * page_size
+    page_pos = pos[start:start + page_size]
 
+    # Normalize and enrich only the current page.
     t4 = time.perf_counter()
-    enrich_buyer_details(pos)
-    logger.info(f"get_pinned_pos: enrich_buyer_details done in {time.perf_counter() - t4:.3f}s")
+    page_pos = [_normalize_po(po) for po in page_pos]
+    logger.info(f"pinned_po_list: _normalize_po done for {len(page_pos)} POs in {time.perf_counter() - t4:.3f}s")
 
-    logger.info(f"get_pinned_pos: returning page {page} ({len(pos)} of {total} POs), total elapsed {time.perf_counter() - t0:.3f}s")
-    return {
-        "page": page,
-        "page_size": page_size,
-        "total": total,
-        "data": pos,
-    }
+    t5 = time.perf_counter()
+    await enrich_buyer_details(page_pos)
+    logger.info(f"pinned_po_list: enrich_buyer_details done in {time.perf_counter() - t5:.3f}s")
+
+    logger.info(f"pinned_po_list: returning page {page} ({len(page_pos)}/{total}), total elapsed {time.perf_counter() - t0:.3f}s")
+    return {"page": page, "page_size": page_size, "total": total, "data": page_pos}
 
 @router.get("/config/sites")
-def get_available_sites(authorization: Optional[str] = Header(default=None)):
-    t0 = time.perf_counter()
+async def get_available_sites(authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
     role = current_user.get("role")
     logger.info(f"config/sites: role={role}")
 
-    session = SessionLocal()
-    try:
-        query = (
-            session.query(LocationMaster.location_name)
-            .join(
-                PurchaseOrderLine,
-                PurchaseOrderLine.location_id == LocationMaster.location_id,
-            )
-            .filter(LocationMaster.location_name.isnot(None))
-        )
+    logger.info("config/sites: Building query for available sites")
+    stmt = (
+        select(LocationMaster.location_name)
+        .join(PurchaseOrderLine, PurchaseOrderLine.location_id == LocationMaster.location_id)
+        .where(LocationMaster.location_name.isnot(None))
+    )
 
-        if role == "SUPPLIER":
-            supplier_ids = []
-            for value in [current_user.get("supplier_msid"), current_user.get("supplier_number")]:
-                if value is None:
-                    continue
-                try:
-                    supplier_ids.append(int(value))
-                except (TypeError, ValueError):
-                    continue
+    if current_user.get("role") == "SUPPLIER":
+        supplier_ids = []
+        for value in [current_user.get("supplier_msid"), current_user.get("supplier_number")]:
+            if value is None:
+                continue
+            try:
+                supplier_ids.append(int(value))
+            except (TypeError, ValueError):
+                continue
 
-            logger.info(f"config/sites: SUPPLIER resolved supplier_ids={supplier_ids}")
-            if supplier_ids:
-                query = query.filter(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
-            else:
-                logger.info(f"config/sites: no valid supplier IDs, returning empty in {time.perf_counter() - t0:.3f}s")
-                return {"sites": []}
+        logger.info(f"config/sites: SUPPLIER role detected, resolved supplier_ids={supplier_ids}")
+        if supplier_ids:
+            stmt = stmt.where(PurchaseOrderLine.local_supplier_id.in_(supplier_ids))
+        else:
+            logger.info("config/sites: No valid supplier IDs resolved, returning empty sites list")
+            return {"sites": []}
 
-        t1 = time.perf_counter()
-        rows = query.distinct().order_by(LocationMaster.location_name.asc()).all()
-        sites = [row.location_name for row in rows if row.location_name]
-        logger.info(f"config/sites: query returned {len(sites)} sites in {time.perf_counter() - t1:.3f}s, total elapsed {time.perf_counter() - t0:.3f}s")
-        return {"sites": sites}
-    finally:
-        session.close()
+    logger.info("config/sites: Executing distinct sites query")
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(stmt.distinct().order_by(LocationMaster.location_name.asc()))
+        rows = result.all()
+
+    sites = [row.location_name for row in rows if row.location_name]
+    logger.info(f"config/sites: Query returned {len(sites)} sites")
+    return {"sites": sites}
 
 @router.get("/{po_id}")
-def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
+async def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
 
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
@@ -1201,7 +1072,7 @@ def get_po(po_id: str, authorization: Optional[str] = Header(default=None)):
 
 
 @router.post("")
-def create_po(po: dict, authorization: Optional[str] = Header(default=None)):
+async def create_po(po: dict, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
     if current_user.get("role") not in {"ADMIN", "PROCUREMENT_SPECIALIST"}:
         raise HTTPException(status_code=403, detail="Forbidden to create PO")
@@ -1211,7 +1082,7 @@ def create_po(po: dict, authorization: Optional[str] = Header(default=None)):
     payload["last_modified_date"] = _now_iso()
 
     try:
-        inserted = create_relational_purchase_order(payload)
+        inserted = await asyncio.to_thread(create_relational_purchase_order, payload)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -1225,9 +1096,9 @@ def create_po(po: dict, authorization: Optional[str] = Header(default=None)):
 
 
 @router.put("/{po_id}")
-def update_po(po_id: str, updated_po: dict, authorization: Optional[str] = Header(default=None)):
+async def update_po(po_id: str, updated_po: dict, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    existing = _load_po(po_id)
+    existing = await _load_po(po_id)
     if not existing:
         raise HTTPException(status_code=404, detail="PO not found")
 
@@ -1243,7 +1114,7 @@ def update_po(po_id: str, updated_po: dict, authorization: Optional[str] = Heade
     merged["last_modified_by"] = current_user.get("id")
     merged["last_modified_date"] = _now_iso()
 
-    updated = replace_relational_purchase_order(po_id, merged)
+    updated = await asyncio.to_thread(replace_relational_purchase_order, po_id, merged)
     if not updated:
         logger.error(
             "po.update persist_failed po_id=%s actor_id=%s role=%s",
@@ -1263,13 +1134,13 @@ def update_po(po_id: str, updated_po: dict, authorization: Optional[str] = Heade
 
 
 @router.post("/{po_id}/actions")
-def perform_po_action(
+async def perform_po_action(
     po_id: str,
     action_payload: dict,
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
@@ -1358,7 +1229,7 @@ def perform_po_action(
     updated_history = updated_po.get("status_history") or []
     new_history_rows = updated_history[existing_history_count:]
 
-    persisted = replace_relational_purchase_order(po_id, updated_po)
+    persisted = await asyncio.to_thread(replace_relational_purchase_order, po_id, updated_po)
     if not persisted:
         logger.error(
             "po.action persist_failed po_id=%s action=%s line_item_id=%s actor_id=%s",
@@ -1378,7 +1249,7 @@ def perform_po_action(
     )
 
     for history_row in new_history_rows:
-        _insert_history_row(po_id, history_row)
+        await _insert_history_row(po_id, history_row)
 
     return {
         **persisted,
@@ -1388,14 +1259,14 @@ def perform_po_action(
 
 
 @router.get("/{po_id}/history")
-def get_po_history(po_id: str, authorization: Optional[str] = Header(default=None)):
+async def get_po_history(po_id: str, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
     _assert_po_access(po, current_user)
-    db_history = _list_history_for_po(po_id)
+    db_history = await _list_history_for_po(po_id)
     if db_history:
         return {
             "po_id": po_id,
@@ -1409,41 +1280,37 @@ def get_po_history(po_id: str, authorization: Optional[str] = Header(default=Non
 
 
 @router.get("/{po_id}/documents")
-def get_po_documents(po_id: str, authorization: Optional[str] = Header(default=None)):
+async def get_po_documents(po_id: str, authorization: Optional[str] = Header(default=None)):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
     _assert_po_access(po, current_user)
     return {
         "po_id": po_id,
-        "documents": _list_documents_for_po(po_id),
+        "documents": await _list_documents_for_po(po_id),
     }
 
 
 @router.get("/{po_id}/documents/{document_id}/download")
-def download_po_document(
+async def download_po_document(
     po_id: str,
     document_id: str,
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
     _assert_po_access(po, current_user)
 
-    session = SessionLocal()
-    try:
-        doc = (
-            session.query(PODocument)
-            .filter(PODocument.id == document_id, PODocument.po_id == po_id)
-            .first()
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(PODocument).where(PODocument.id == document_id, PODocument.po_id == po_id)
         )
-    finally:
-        session.close()
+        doc = result.scalar_one_or_none()
 
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -1461,14 +1328,14 @@ def download_po_document(
 
 
 @router.post("/{po_id}/documents/{document_id}/actions")
-def perform_po_document_action(
+async def perform_po_document_action(
     po_id: str,
     document_id: str,
     action_payload: dict,
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
@@ -1483,18 +1350,15 @@ def perform_po_document_action(
     if action not in DOCUMENT_ACTION_STATUS:
         raise HTTPException(status_code=400, detail="Unsupported document action")
 
-    session = SessionLocal()
-    try:
-        document = _get_document_or_404(session, po_id, document_id)
+    async with AsyncSessionLocal() as session:
+        document = await _get_document_or_404(session, po_id, document_id)
         previous_status = document.status
         document.status = DOCUMENT_ACTION_STATUS[action]
         document.ps_comments = notes or document.ps_comments
         session.add(document)
-        session.commit()
-        session.refresh(document)
+        await session.commit()
+        await session.refresh(document)
         serialized_document = _serialize_document_row(document)
-    finally:
-        session.close()
 
     history_record = {
         "action": f"DOCUMENT_{action}",
@@ -1507,7 +1371,7 @@ def perform_po_document_action(
         "timestamp": _now_iso(),
         "document_id": document_id,
     }
-    _append_and_persist_history(po_id, po, history_record)
+    await _append_and_persist_history(po_id, po, history_record)
 
     return {"document": serialized_document}
 
@@ -1522,21 +1386,21 @@ async def replace_po_document(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
     _assert_po_access(po, current_user)
     normalized_tag = _normalize_document_tag(document_tag_to)
 
-    session = SessionLocal()
-    try:
-        document = _get_document_or_404(session, po_id, document_id)
+    content = await file.read()
+
+    async with AsyncSessionLocal() as session:
+        document = await _get_document_or_404(session, po_id, document_id)
         previous_status = document.status
         UPLOAD_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
         extension = Path(file.filename or document.file_name or "document").suffix
         replacement_path = UPLOAD_STORAGE_PATH / f"{document.id}{extension}"
-        content = await file.read()
         replacement_path.write_bytes(content)
 
         document.file_name = file.filename or document.file_name
@@ -1549,11 +1413,9 @@ async def replace_po_document(
         document.document_tag_to = normalized_tag
         document.uploaded_by = current_user.get("id")
         session.add(document)
-        session.commit()
-        session.refresh(document)
+        await session.commit()
+        await session.refresh(document)
         serialized_document = _serialize_document_row(document)
-    finally:
-        session.close()
 
     history_record = {
         "action": "DOCUMENT_REPLACED",
@@ -1567,7 +1429,7 @@ async def replace_po_document(
         "document_id": document_id,
         "document_tag_to": normalized_tag,
     }
-    _append_and_persist_history(po_id, po, history_record)
+    await _append_and_persist_history(po_id, po, history_record)
 
     return {"document": serialized_document}
 
@@ -1582,7 +1444,7 @@ async def upload_po_document(
     authorization: Optional[str] = Header(default=None),
 ):
     current_user = _current_user(authorization)
-    po = _load_po(po_id)
+    po = await _load_po(po_id)
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
@@ -1599,8 +1461,7 @@ async def upload_po_document(
     content = await file.read()
     output_path.write_bytes(content)
 
-    session = SessionLocal()
-    try:
+    async with AsyncSessionLocal() as session:
         document = PODocument(
             id=document_id,
             po_id=po_id,
@@ -1616,10 +1477,8 @@ async def upload_po_document(
             uploaded_by=current_user.get("id"),
         )
         session.add(document)
-        session.commit()
-        session.refresh(document)
-    finally:
-        session.close()
+        await session.commit()
+        await session.refresh(document)
 
     line_documents = line_item.setdefault("documents", [])
     line_documents.append(
@@ -1648,7 +1507,7 @@ async def upload_po_document(
         "document_id": document_id,
         "document_tag_to": normalized_tag,
     }
-    _append_and_persist_history(po_id, po, history_record)
+    await _append_and_persist_history(po_id, po, history_record)
 
     return {
         "message": "Document uploaded successfully",

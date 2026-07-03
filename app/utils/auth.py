@@ -13,8 +13,10 @@ def create_token(user):
     payload = {
         "sub": user["id"],
         "role": user["role"],
-        "name": user["name"], 
+        "name": user["name"],
         "email": user["email"],
+        "supplier_number": user.get("supplier_number"),
+        "supplier_msid": user.get("supplier_msid"),
         "exp": datetime.utcnow() + timedelta(hours=8)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)

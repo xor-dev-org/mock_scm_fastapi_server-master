@@ -21,7 +21,7 @@ from app.integrations.chat_service.controllers import (
 
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth, po, supplier, admin, delegation, userpref, chat, ai_controller
-from app.utils.postgres_db import initialize_database, seed_mrp_and_exceptions
+from app.utils.postgres_db import initialize_database, seed_mrp_and_exceptions, seed_targeted_po_exceptions
 
 
 app = FastAPI(
@@ -67,6 +67,14 @@ def seed_mrp_dates():
         return seed_mrp_and_exceptions()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to seed MRP dates: {exc}") from exc
+
+
+@app.get("/re-distribute")
+def calibrate_targeted():
+    try:
+        return seed_targeted_po_exceptions()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to re-distribute targeted POs: {exc}") from exc
 
 
 @app.get("/health")

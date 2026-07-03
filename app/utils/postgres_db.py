@@ -9,10 +9,10 @@ from contextlib import contextmanager
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
-from sqlalchemy import Numeric, String as SAString, cast, create_engine, func, literal, or_, text
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy import and_, create_engine, func, or_, text
+from sqlalchemy.orm import Session, noload
 
 from app.db.models import (
     ChatMessage,
@@ -1276,7 +1276,7 @@ def seed_relational_data(force_reset: bool = False) -> None:
 
 def seed_mrp_and_exceptions() -> Dict[str, Any]:
     """
-    Three-phase seed operation:
+    Four-phase seed operation:
 
     Phase 1 — redistribute mrp_need_by_date and latest_promise_date (non-null rows,
       relative to 2026-07-02). Both columns are always set to the same date:
@@ -1294,6 +1294,9 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
       based on mrp_need_by_date (falling back to latest_promise_date):
       RESCHEDULE OUT → updated_delivery_date = base_date + choice([3,4,5]) days
       RESCHEDULE IN  → updated_delivery_date = base_date - choice([3,4,5]) days
+
+    Phase 4 — set line_status = 'PENDING ACKNOWLEDGEMENT' for all rows that
+      have a non-null updated_delivery_date.
     """
     import random
     from datetime import date, timedelta
@@ -1411,6 +1414,22 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
             reschedule_out_count, reschedule_in_count,
         )
 
+        # ── Phase 4: mark line_status = PENDING ACKNOWLEDGEMENT for rows ────
+        #             that have an updated_delivery_date set
+        pending_ack_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(PurchaseOrderLine.updated_delivery_date.isnot(None))
+            .all()
+        )
+        for row in pending_ack_rows:
+            row.line_status = "PENDING ACKNOWLEDGEMENT"
+
+        session.flush()
+        logger.info(
+            "seed_mrp_and_exceptions: phase4 done — pending_acknowledgement=%d",
+            len(pending_ack_rows),
+        )
+
     logger.info("seed_mrp_and_exceptions: all changes committed")
     return {
         "status": "Success",
@@ -1428,6 +1447,149 @@ def seed_mrp_and_exceptions() -> Dict[str, Any]:
         "reschedule": {
             "reschedule_out_updated": reschedule_out_count,
             "reschedule_in_updated": reschedule_in_count,
+        },
+        "pending_acknowledgement_updated": len(pending_ack_rows),
+    }
+
+
+_TARGETED_PO_NUMBERS = [
+    "4500446282", "4500463721", "4500463725", "4500463726",
+    "4500463734", "4500463748", "4500481853", "4500483571",
+    "4500533247", "4500533790", "4500541168", "4500541169",
+    "4500541223", "4500564761", "4500569702", "4500572694",
+]
+
+
+def seed_targeted_po_exceptions() -> Dict[str, Any]:
+    """
+    Assigns except_message uniformly across RESCHEDULE OUT, RESCHEDULE IN, and
+    SHORTAGE for the POs in _TARGETED_PO_NUMBERS. Rows whose po_status is
+    CANCELED are skipped entirely.
+
+    Split is at the PO level (all lines of a PO get the same exception):
+      ~1/3 of POs → RESCHEDULE OUT
+      ~1/3 of POs → RESCHEDULE IN
+      remaining   → SHORTAGE
+
+    RESCHEDULE OUT / IN:
+      - mrp_need_by_date and latest_promise_date are set to a random date
+        (uses the existing value if already set, otherwise generates July/Aug 2026)
+      - updated_delivery_date = base_date + choice([3,4,5]) days for OUT
+      - updated_delivery_date = base_date - choice([3,4,5]) days for IN
+      - line_status set to PENDING ACKNOWLEDGEMENT
+
+    SHORTAGE (only lines where quantity_ordered > 0):
+      - updated_quantity = quantity_ordered + choice([2,3,5])
+      - updated_net_value recalculated from updated_quantity × unit_price
+    """
+    import random
+    from collections import defaultdict
+    from datetime import date, timedelta
+
+    with _session_scope() as session:
+        all_rows: List[PurchaseOrderLine] = (
+            session.query(PurchaseOrderLine)
+            .filter(
+                PurchaseOrderLine.po_no.in_(_TARGETED_PO_NUMBERS),
+                func.upper(PurchaseOrderLine.po_status) != "CANCELED",
+            )
+            .all()
+        )
+
+        # Group lines by PO number so the split is at the PO level.
+        po_groups: Dict[str, List[PurchaseOrderLine]] = defaultdict(list)
+        for row in all_rows:
+            if row.po_no:
+                po_groups[row.po_no].append(row)
+
+        eligible_po_nos = list(po_groups.keys())
+        logger.info(
+            "seed_targeted_po_exceptions: %d eligible POs out of %d requested",
+            len(eligible_po_nos), len(_TARGETED_PO_NUMBERS),
+        )
+
+        random.shuffle(eligible_po_nos)
+
+        n = len(eligible_po_nos)
+        n_out = n // 3
+        n_in  = n // 3
+        # remainder goes to SHORTAGE
+
+        reschedule_out_pos = eligible_po_nos[:n_out]
+        reschedule_in_pos  = eligible_po_nos[n_out:n_out + n_in]
+        shortage_pos       = eligible_po_nos[n_out + n_in:]
+
+        logger.info(
+            "seed_targeted_po_exceptions: split — reschedule_out=%d reschedule_in=%d shortage=%d",
+            len(reschedule_out_pos), len(reschedule_in_pos), len(shortage_pos),
+        )
+
+        reschedule_out_lines = 0
+        reschedule_in_lines  = 0
+        shortage_lines       = 0
+
+        def _base_date_for(row: PurchaseOrderLine) -> date:
+            if row.mrp_need_by_date:
+                return row.mrp_need_by_date
+            if row.latest_promise_date:
+                return row.latest_promise_date
+            # Fallback: random date in July or August 2026.
+            month = random.choice([7, 8])
+            return date(2026, month, random.randint(1, 28))
+
+        for po_no in reschedule_out_pos:
+            for row in po_groups[po_no]:
+                row.except_message = "RESCHEDULE OUT"
+                base = _base_date_for(row)
+                row.mrp_need_by_date    = base
+                row.latest_promise_date = base
+                row.updated_delivery_date = base + timedelta(days=random.choice([3, 4, 5]))
+                row.line_status = "PENDING ACKNOWLEDGEMENT"
+                reschedule_out_lines += 1
+
+        for po_no in reschedule_in_pos:
+            for row in po_groups[po_no]:
+                row.except_message = "RESCHEDULE IN"
+                base = _base_date_for(row)
+                row.mrp_need_by_date    = base
+                row.latest_promise_date = base
+                row.updated_delivery_date = base - timedelta(days=random.choice([3, 4, 5]))
+                row.line_status = "PENDING ACKNOWLEDGEMENT"
+                reschedule_in_lines += 1
+
+        for po_no in shortage_pos:
+            for row in po_groups[po_no]:
+                if (row.quantity_ordered or 0) > 0:
+                    row.except_message = "SHORTAGE"
+                    delta   = random.choice([2, 3, 5])
+                    new_qty = float(row.quantity_ordered) + delta
+                    row.updated_quantity = new_qty
+                    unit_price = float(
+                        row.updated_unit_price if row.updated_unit_price is not None
+                        else (row.unit_cost or 0.0)
+                    )
+                    row.updated_net_value = round(new_qty * unit_price, 2)
+                    shortage_lines += 1
+
+        session.flush()
+        logger.info(
+            "seed_targeted_po_exceptions: done — reschedule_out_lines=%d reschedule_in_lines=%d shortage_lines=%d",
+            reschedule_out_lines, reschedule_in_lines, shortage_lines,
+        )
+
+    return {
+        "status": "Success",
+        "reschedule_out": {
+            "po_count": len(reschedule_out_pos),
+            "line_count": reschedule_out_lines,
+        },
+        "reschedule_in": {
+            "po_count": len(reschedule_in_pos),
+            "line_count": reschedule_in_lines,
+        },
+        "shortage": {
+            "po_count": len(shortage_pos),
+            "line_count": shortage_lines,
         },
     }
 
@@ -1600,6 +1762,7 @@ def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
 
 def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
     supplier_name = first_line.supplier.supplier_name if first_line.supplier else None
+    supplier_address = first_line.supplier.address if first_line.supplier else None
     site_name = first_line.location.location_name if first_line.location else None
     created_date = (
         first_line.po_issue_date
@@ -1627,6 +1790,7 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
         "supplier_id": str(first_line.local_supplier_id),
         "supplier_name": supplier_name,
         "supplier_email": first_line.supplier_email,
+        "supplier_address": supplier_address,
         "site": site_name,
         "status": first_line.po_status,
         "source_system": first_line.source_erp,
@@ -1642,11 +1806,290 @@ def _build_po_payload(first_line: PurchaseOrderLine) -> Dict[str, Any]:
         "period_date": first_line.period_date.isoformat() if first_line.period_date else None,
         "purchasing_group": first_line.purchasing_group,
         "mrp_exceptions": first_line.except_message,
+        "incoterm": first_line.incoterm,
+        "incoterm_named_place": first_line.incoterm_named_place,
         "line_items": [],
         "status_history": [],
         "workflow_stage": "PO_DETAILS",
         "revision_changes": 0,
     }
+
+def get_all_pos(
+    email: str, 
+    user_id: str, 
+    role: str, 
+    supplier_msid: Optional[str], 
+    supplier_number: Optional[str]
+) -> List[Dict[str, Any]]:
+    
+    # 1. Base conditions depending on the user role
+    if role == "PROCUREMENT_SPECIALIST":
+        conditions = [PurchaseOrderLine.procurement_specialist_id == user_id]
+    else:
+        # Cast string to int safely to match the database column type (Integer)
+        msid_int = int(supplier_msid) if supplier_msid else None
+        conditions = [PurchaseOrderLine.local_supplier_id == msid_int]
+
+    # 2. Append optional filters if provided
+    if supplier_number:
+        conditions.append(PurchaseOrderLine.po_no == supplier_number)
+
+    with _session_scope() as session:
+        # 3. Query records (lazy="joined" automatically fetches supplier in this query)
+        rows = (
+            session.query(PurchaseOrderLine)
+            .filter(*conditions)
+            .order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no)
+            .all()
+        )
+
+        # 4. Serialize model data clean of SQLAlchemy state
+        result = []
+        for row in rows:
+            # Build clean PO dictionary field by field
+            po_dict = {col.name: getattr(row, col.name) for col in row.__table__.columns}
+            
+            # Explicitly capture JSON fields handled by SQLAlchemy mapping
+            po_dict["line_documents"] = row.line_documents
+            po_dict["line_history"] = row.line_history
+            po_dict["split_deliveries"] = row.split_deliveries
+
+            # Include joined supplier details dynamically
+            # 2. Safely grab Joined SUPPLIER details
+            po_dict["supplier"] = (
+                {col.name: getattr(row.supplier, col.name) for col in row.supplier.__table__.columns}
+                if row.supplier else None
+            )
+
+            # 3. Safely grab Joined LOCATION details
+            po_dict["location"] = (
+                {col.name: getattr(row.location, col.name) for col in row.location.__table__.columns}
+                if row.location else None
+            )
+
+            # 4. Safely grab Joined ITEM details
+            po_dict["item"] = (
+                {col.name: getattr(row.item, col.name) for col in row.item.__table__.columns}
+                if row.item else None
+            )
+
+            result.append(po_dict)
+
+        return result
+
+
+def get_filtered_pos(
+    *,
+    role: str,
+    user_id: str,
+    supplier_msid: Optional[Any] = None,
+    supplier_number: Optional[Any] = None,
+    email: str = "",
+    status: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    supplier_email: Optional[str] = None,
+    site: Optional[str] = None,
+    po_number: Optional[str] = None,
+    supplier_name: Optional[str] = None,
+    procurement_specialist_id: Optional[str] = None,
+    total_value_from: Optional[float] = None,
+    total_value_to: Optional[float] = None,
+    delivery_date_from: Optional[str] = None,
+    delivery_date_to: Optional[str] = None,
+    source_system: Optional[str] = None,
+    items_from: Optional[int] = None,
+    items_to: Optional[int] = None,
+    mrp_exceptions: Optional[str] = None,
+    search: Optional[str] = None,
+    po_ids: Optional[List[str]] = None,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+    page: int = 1,
+    page_size: int = 50,
+    skip_pagination: bool = False,
+) -> Tuple[int, List[Dict[str, Any]]]:
+    """DB-level filtering, sorting, and pagination for the PO list endpoint.
+
+    Returns (total_po_count, list_of_po_dicts).
+    When skip_pagination=True all matching POs are returned regardless of page/page_size.
+    """
+    with _session_scope() as session:
+        # Explicit outer joins; noload prevents double-join from lazy="joined" relationships.
+        q = (
+            session.query(PurchaseOrderLine)
+            .options(
+                noload(PurchaseOrderLine.supplier),
+                noload(PurchaseOrderLine.location),
+                noload(PurchaseOrderLine.item),
+            )
+            .join(SupplierMaster, PurchaseOrderLine.local_supplier_id == SupplierMaster.msid, isouter=True)
+            .join(LocationMaster, PurchaseOrderLine.location_id == LocationMaster.location_id, isouter=True)
+            .join(ItemMaster, PurchaseOrderLine.item_no == ItemMaster.item_no, isouter=True)
+        )
+
+        # --- Role-based access ---
+        if role == "PROCUREMENT_SPECIALIST":
+            q = q.filter(PurchaseOrderLine.procurement_specialist_id == str(user_id or ""))
+        elif role == "SUPPLIER":
+            supplier_filters = []
+            msid_int = _safe_int(supplier_msid)
+            snum_int = _safe_int(supplier_number)
+            ids = {v for v in [msid_int, snum_int] if v is not None}
+            if ids:
+                supplier_filters.append(PurchaseOrderLine.local_supplier_id.in_(ids))
+            norm_email = _safe_str(email)
+            if norm_email:
+                supplier_filters.append(func.lower(PurchaseOrderLine.supplier_email) == norm_email.lower())
+            if not supplier_filters:
+                return 0, []
+            q = q.filter(or_(*supplier_filters))
+        elif role == "ADMIN":
+            pass
+        else:
+            return 0, []
+
+        # Explicit PO ID scope (e.g. pinned list)
+        if po_ids:
+            q = q.filter(PurchaseOrderLine.po_header_id.in_(po_ids))
+
+        # --- Column-level filters ---
+        if status:
+            q = q.filter(PurchaseOrderLine.po_status == status)
+        if supplier_id:
+            sid = _safe_int(supplier_id)
+            if sid is not None:
+                q = q.filter(PurchaseOrderLine.local_supplier_id == sid)
+        if supplier_email:
+            q = q.filter(func.lower(PurchaseOrderLine.supplier_email) == supplier_email.lower())
+        if site:
+            sites = [s.strip() for s in site.split(",") if s.strip()]
+            if sites:
+                q = q.filter(LocationMaster.location_name.in_(sites))
+        if po_number:
+            q = q.filter(func.lower(PurchaseOrderLine.po_no).like(f"%{po_number.lower()}%"))
+        if supplier_name:
+            q = q.filter(SupplierMaster.supplier_name.ilike(f"%{supplier_name}%"))
+        if procurement_specialist_id:
+            q = q.filter(PurchaseOrderLine.procurement_specialist_id == procurement_specialist_id)
+        if source_system:
+            q = q.filter(func.lower(PurchaseOrderLine.source_erp) == source_system.lower())
+        if delivery_date_from:
+            q = q.filter(PurchaseOrderLine.latest_promise_date >= date.fromisoformat(delivery_date_from))
+        if delivery_date_to:
+            q = q.filter(PurchaseOrderLine.latest_promise_date <= date.fromisoformat(delivery_date_to))
+        if mrp_exceptions == "Yes":
+            q = q.filter(
+                PurchaseOrderLine.except_message.isnot(None),
+                func.upper(PurchaseOrderLine.except_message) != "NONE",
+            )
+        elif mrp_exceptions == "No":
+            q = q.filter(
+                or_(
+                    PurchaseOrderLine.except_message.is_(None),
+                    func.upper(PurchaseOrderLine.except_message) == "NONE",
+                )
+            )
+        if search:
+            pat = f"%{search.lower()}%"
+            q = q.filter(
+                or_(
+                    func.lower(PurchaseOrderLine.po_no).like(pat),
+                    func.lower(SupplierMaster.supplier_name).like(pat),
+                    func.lower(PurchaseOrderLine.supplier_email).like(pat),
+                    func.lower(PurchaseOrderLine.source_erp).like(pat),
+                    func.lower(LocationMaster.location_name).like(pat),
+                    func.lower(PurchaseOrderLine.po_status).like(pat),
+                    func.lower(PurchaseOrderLine.item_description).like(pat),
+                    func.lower(ItemMaster.material_code).like(pat),
+                )
+            )
+
+        # --- Aggregate expressions ---
+        total_val_expr = func.sum(
+            func.coalesce(PurchaseOrderLine.updated_quantity, PurchaseOrderLine.quantity_ordered)
+            * func.coalesce(PurchaseOrderLine.updated_unit_price, PurchaseOrderLine.unit_cost)
+        )
+        line_count_expr = func.count(PurchaseOrderLine.po_id)
+
+        # Sort expression map (MIN/aggregate over each po_header_id group)
+        _SORT_MAP: Dict[str, Any] = {
+            "status": func.min(PurchaseOrderLine.po_status),
+            "po_number": func.min(PurchaseOrderLine.po_no),
+            "delivery_date": func.min(PurchaseOrderLine.latest_promise_date),
+            "source_system": func.min(PurchaseOrderLine.source_erp),
+            "supplier_id": func.min(PurchaseOrderLine.local_supplier_id),
+            "supplier_name": func.min(SupplierMaster.supplier_name),
+            "site": func.min(LocationMaster.location_name),
+            "created_date": func.min(PurchaseOrderLine.po_issue_date),
+            "mrp_need_by_date": func.min(PurchaseOrderLine.mrp_need_by_date),
+            "period_date": func.min(PurchaseOrderLine.period_date),
+            "mrp_exceptions": func.min(PurchaseOrderLine.except_message),
+            "purchasing_group": func.min(PurchaseOrderLine.purchasing_group),
+            "total_value": total_val_expr,
+        }
+        sort_expr = _SORT_MAP.get(sort_by) if sort_by else None
+
+        # --- Header subquery: one row per distinct po_header_id ---
+        header_q = (
+            q.with_entities(PurchaseOrderLine.po_header_id.label("po_header_id"))
+            .group_by(PurchaseOrderLine.po_header_id)
+        )
+
+        # HAVING for aggregate range filters
+        if total_value_from is not None:
+            header_q = header_q.having(total_val_expr >= total_value_from)
+        if total_value_to is not None:
+            header_q = header_q.having(total_val_expr <= total_value_to)
+        if items_from is not None:
+            header_q = header_q.having(line_count_expr >= items_from)
+        if items_to is not None:
+            header_q = header_q.having(line_count_expr <= items_to)
+
+        # Total count (wrap grouped query in subquery so COUNT counts groups)
+        count_subq = header_q.subquery()
+        total = session.query(func.count()).select_from(count_subq).scalar() or 0
+        if total == 0:
+            return 0, []
+
+        # Ordering
+        if sort_expr is not None:
+            order_clause = sort_expr.desc() if sort_order == "desc" else sort_expr.asc()
+        else:
+            order_clause = func.min(PurchaseOrderLine.po_no).asc()
+        header_q = header_q.order_by(order_clause)
+
+        # Pagination
+        if skip_pagination:
+            paginated = header_q.all()
+        else:
+            offset = (page - 1) * page_size
+            paginated = header_q.offset(offset).limit(page_size).all()
+
+        if not paginated:
+            return total, []
+
+        po_header_ids = [row.po_header_id for row in paginated]
+
+        # Fetch full line data; lazy="joined" loads supplier/location/item relations.
+        rows = (
+            session.query(PurchaseOrderLine)
+            .filter(PurchaseOrderLine.po_header_id.in_(po_header_ids))
+            .order_by(PurchaseOrderLine.po_header_id, PurchaseOrderLine.poline_no)
+            .all()
+        )
+
+        grouped: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            if row.po_header_id not in grouped:
+                grouped[row.po_header_id] = _build_po_payload(row)
+            grouped[row.po_header_id]["line_items"].append(_serialize_po_line(row))
+
+        for po in grouped.values():
+            po["total_value"] = round(
+                sum(line.get("net_value", 0) for line in po.get("line_items", [])), 2
+            )
+
+        return total, [grouped[hid] for hid in po_header_ids if hid in grouped]
 
 
 def query_relational_purchase_orders(po_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
