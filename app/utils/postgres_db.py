@@ -1586,9 +1586,10 @@ def seed_targeted_po_exceptions() -> Dict[str, Any]:
             for row in po_groups[po_id]:
                 row.except_message = "SHORTAGE"
                 shortage_lines += 1
-                if (row.quantity_ordered or 0) > 0:
-                    delta     = random.choice([2, 3, 5])
-                    new_qty   = float(row.quantity_ordered) + delta
+                qty_ord = float(row.quantity_ordered or 0)
+                if qty_ord > 0:
+                    delta      = random.choice([2, 3, 5])
+                    new_qty    = qty_ord + delta
                     unit_price = float(
                         row.updated_unit_price if row.updated_unit_price is not None
                         else (row.unit_cost or 0.0)
@@ -1724,8 +1725,12 @@ def _serialize_chat_user_map(row: ChatUserMap) -> Dict[str, Any]:
 
 
 def _serialize_po_line(line: PurchaseOrderLine) -> Dict[str, Any]:
-    quantity = line.updated_quantity if line.updated_quantity is not None else (line.quantity_ordered or 0)
+    # quantity always reflects the original ordered amount so it stays distinct
+    # from updated_quantity (the supplier-requested change).
+    quantity = float(line.quantity_ordered or 0)
     unit_cost = float(line.updated_unit_price if line.updated_unit_price is not None else (line.unit_cost or 0.0))
+    # net_value uses effective quantity so PO-level total_value stays accurate.
+    effective_qty = float(line.updated_quantity) if line.updated_quantity is not None else quantity
     net_value = round(quantity * unit_cost, 2)
     line_number = _safe_str(line.poline_no) or ""
     exception_message = _safe_str(line.except_message)
