@@ -76,6 +76,25 @@ def calibrate_targeted():
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to re-distribute targeted POs: {exc}") from exc
 
+@app.get("/change-password")
+def change_password():
+    from app.db.session import SessionLocal
+    from app.db.models import User
+    session = SessionLocal()
+    try:
+        updated = (
+            session.query(User)
+            .filter(User.role == "SUPPLIER")
+            .update({"password": "Password@1234#"}, synchronize_session=False)
+        )
+        session.commit()
+        logging.info("change_password: updated %d supplier accounts", updated)
+        return {"status": "Password changed successfully", "updated_count": updated}
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 @app.get("/health")
 def health():

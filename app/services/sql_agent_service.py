@@ -83,14 +83,26 @@ class SQLAgentService:
     def enabled(self) -> bool:
         return self._agent is not None
 
-    def ask(self, question: str) -> Dict[str, Any]:
+    def ask(self, question: str, *, role: str = "ADMIN", supplier_msid: Optional[int] = None) -> Dict[str, Any]:
         agent = self._agent
         if agent is None:
             return {"error": "SQL agent is not configured."}
 
+        role_upper = (role or "").upper()
+        if role_upper == "SUPPLIER" and supplier_msid is not None:
+            context = (
+                f"[CONTEXT] Caller role: SUPPLIER. "
+                f"Restrict ALL purchase_orders queries to local_supplier_id = {supplier_msid}. "
+                "Do not expose data for any other supplier.\n\n"
+            )
+        else:
+            context = f"[CONTEXT] Caller role: {role_upper}. Full database access is permitted.\n\n"
+
+        augmented = context + question
+
         try:
-            result = agent.invoke({"input": question})
+            result = agent.invoke({"input": augmented})
             return {"output": result.get("output", "")}
         except Exception:
-            logger.exception("sql_agent.query_failed question=%s", question)
+            logger.exception("sql_agent.query_failed role=%s question=%s", role_upper, question)
             return {"error": "Failed to answer the question using the SQL agent."}
