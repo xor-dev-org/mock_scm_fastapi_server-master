@@ -89,12 +89,13 @@ ROLE_ALLOWED_ACTIONS = {
 
 UPLOAD_STORAGE_PATH = Path(os.getenv("UPLOAD_STORAGE_PATH", "data/uploads")).resolve()
 DEFAULT_DOCUMENT_TAGS = [
-    "LINE_ITEM",
-    "CONCESSION",
-    "SPECIFICATION",
-    "QUALITY",
-    "DELIVERY",
-    "COMMERCIAL",
+    "Material Certificate",
+    "Welding Map",
+    "Welding book (WPS,PQR,WPQ)",
+    "RX Certificate",
+    "Ultrasonic Test",
+    "Dimensional Control Report",
+    "DYE Penetrant Test"
 ]
 
 
@@ -113,12 +114,12 @@ def _load_document_tags() -> List[str]:
     if not isinstance(tags, list):
         return DEFAULT_DOCUMENT_TAGS
 
-    normalized = [str(tag).strip().upper() for tag in tags if str(tag).strip()]
+    normalized = [str(tag).strip()   for tag in tags if str(tag).strip()]
     return normalized or DEFAULT_DOCUMENT_TAGS
 
 
 def _normalize_document_tag(tag: Optional[str]) -> str:
-    normalized = (tag or "LINE_ITEM").strip().upper()
+    normalized = (tag or "LINE_ITEM").strip()
     allowed_tags = set(_load_document_tags())
     if normalized not in allowed_tags:
         raise HTTPException(status_code=400, detail=f"Unsupported document_tag_to '{normalized}'")
