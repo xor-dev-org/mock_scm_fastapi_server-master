@@ -40,24 +40,25 @@ def _current_user(authorization: str) -> Dict:
 
 @router.post("/sql-query")
 def ask_sql_agent(payload: SqlAgentQueryRequest, authorization: Optional[str] = Header(default=None), current_user: dict = Depends(blocked_users)):
-    if authorization is not None:
-        current_user = _current_user(authorization)
-        role = current_user.get("role")
-        user_id = current_user.get("id")
-        email = current_user.get("email")
-        supplier_msid = current_user.get("supplier_msid")
-        supplier_number = current_user.get("supplier_number")
-    else:
-        raise HTTPException(status_code=401, detail="Authorization header missing")
+    # if authorization is not None:
+    #     current_user = _current_user(authorization)
+    #     role = current_user.get("role")
+    #     user_id = current_user.get("id")
+    #     email = current_user.get("email")
+    #     supplier_msid = current_user.get("supplier_msid")
+    #     supplier_number = current_user.get("supplier_number")
+    # else:
+    #     raise HTTPException(status_code=401, detail="Authorization header missing")
     
-    result = SQLAgentService().ask(
-        payload.query,
-        role=role or "ADMIN",
-        supplier_msid=supplier_msid,
-    )
+    # result = SQLAgentService().ask(
+    #     payload.query,
+    #     role=role or "ADMIN",
+    #     supplier_msid=supplier_msid,
+    # )
 
-    if "error" in result:
-        status_code = 503 if not SQLAgentService().enabled else 500
-        raise HTTPException(status_code=status_code, detail=result["error"])
+    # if "error" in result:
+    #     status_code = 503 if not SQLAgentService().enabled else 500
+    #     raise HTTPException(status_code=status_code, detail=result["error"])
 
-    return result
+    # return result
+    raise HTTPException(status_code=503, detail="SQL Agent service is currently unavailable.")
