@@ -964,17 +964,40 @@ async def get_pos(
             "data": line_rows[start:start + page_size],
         }
 
-    logger.info(f"get_pos: [po_mode] calling get_filtered_pos page={page} page_size={page_size}")
-    t1 = time.perf_counter()
-    total, pos = await asyncio.to_thread(
-        get_filtered_pos,
-        **_db_kwargs,
-        sort_by=sort_by,
-        sort_order=sort_order,
-        page=page,
-        page_size=page_size,
+    buyer_sort_fields = {"buyer_name", "buyer_email", "buyer_phone"}
+    is_buyer_sort = sort_by in buyer_sort_fields
+
+    logger.info(
+        f"get_pos: [po_mode] calling get_filtered_pos page={page} page_size={page_size} "
+        f"sort_by={sort_by} buyer_sort={is_buyer_sort}"
     )
-    logger.info(f"get_pos: [po_mode] get_filtered_pos returned {len(pos)}/{total} POs in {time.perf_counter() - t1:.3f}s")
+
+    t1 = time.perf_counter()
+
+    if is_buyer_sort:
+        # Buyer fields are added after enriching PO data, so DB-level sorting cannot work for them.
+        # Fetch all matching POs first, enrich buyer details, then sort and paginate in Python.
+        total, pos = await asyncio.to_thread(
+            get_filtered_pos,
+            **_db_kwargs,
+            sort_by=None,
+            sort_order=sort_order,
+            skip_pagination=True,
+        )
+    else:
+        total, pos = await asyncio.to_thread(
+            get_filtered_pos,
+            **_db_kwargs,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            page_size=page_size,
+        )
+
+    logger.info(
+        f"get_pos: [po_mode] get_filtered_pos returned {len(pos)}/{total} POs "
+        f"in {time.perf_counter() - t1:.3f}s"
+    )
 
     t2 = time.perf_counter()
     pos = [_normalize_po(po) for po in pos]
@@ -984,7 +1007,43 @@ async def get_pos(
     await enrich_buyer_details(pos)
     logger.info(f"get_pos: [po_mode] enrich_buyer_details done in {time.perf_counter() - t3:.3f}s")
 
-    logger.info(f"get_pos: [po_mode] total elapsed {time.perf_counter() - t0:.3f}s, returning {len(pos)}/{total} POs")
+    if is_buyer_sort:
+        t4 = time.perf_counter()
+        reverse_sort = sort_order == "desc"
+
+        non_empty_pos = [
+            po for po in pos
+            if not _is_empty_sort_value(po.get(sort_by))
+        ]
+
+        empty_pos = [
+            po for po in pos
+            if _is_empty_sort_value(po.get(sort_by))
+        ]
+
+        non_empty_pos = sorted(
+            non_empty_pos,
+            key=lambda po: _parse_sort_value(po.get(sort_by)),
+            reverse=reverse_sort,
+        )
+
+        # Keep empty / None / -- values at bottom for both asc and desc.
+        pos = non_empty_pos + empty_pos
+
+        total = len(pos)
+        start = (page - 1) * page_size
+        pos = pos[start:start + page_size]
+
+        logger.info(
+            f"get_pos: [po_mode] buyer sort by '{sort_by}' done in "
+            f"{time.perf_counter() - t4:.3f}s"
+        )
+
+    logger.info(
+        f"get_pos: [po_mode] total elapsed {time.perf_counter() - t0:.3f}s, "
+        f"returning {len(pos)}/{total} POs"
+    )
+
     return {
         "page": page,
         "page_size": page_size,
